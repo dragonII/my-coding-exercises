@@ -1,4 +1,32 @@
 #include <stdio.h>
+#include <stdint.h>
+#include <limits.h>
+
+#include <locale.h>
+
+/* Take care of NLS matters. (Native Language String?)*/
+
+#include "gettext.h"
+#if ! ENABLE_NLS
+# undef textdomain
+# define textdomain(Domainname) /* empty */
+# undef bindtextdomain
+# define bindtextdomain(Domainname, Dirname) /* empty */
+#endif /* ! ENABLE_NLS */
+
+#define _(msgid) gettext (msgid)
+#define N_(msgid) msgid
+
+/* Return a value that pluralizes the same way that N does, in all
+   languages we know of. */
+static inline unsigned long int
+select_plural(uintmax_t n)
+{
+    /* Reduce by a power of ten, but keep it away from zero. The
+       gettext manual says 100,0000 should be safe. */
+    enum { PLURAL_REDECER = 1000000 };
+    return ( n <= ULONG_MAX ? n : n % PLURAL_REDECER + PLURAL_REDECER);
+}
 
 static inline void
 emit_ancillary_info()
