@@ -8,6 +8,7 @@
 #include <google/protobuf/stubs/common.h>
 
 #include "application.h"
+#include "lib/base/log_wrap.h"
 
 void DealIBusMsg(const char* _msg, int _msgLength, int _msgSrcID);
 
