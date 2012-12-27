@@ -11,7 +11,7 @@ CFLAGS=-Wall -c -g
 LDFLAGS=-g
 INFLAGS=-I../lib
 
-DDEBUG=-D__DEBUG__
+#DDEBUG=-D__DEBUG__
 
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
