@@ -1,5 +1,5 @@
-#include <config.h>
-#include <stdbool.h>
+//#include <config.h>
+#include <stdbool.h>  // for type bool
 #include "dirname.h"
 
 /*
