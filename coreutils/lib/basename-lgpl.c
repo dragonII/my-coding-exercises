@@ -1,4 +1,6 @@
 #include <config.h>
+#include <stdbool.h>
+#include "dirname.h"
 
 /*
  * Return the address of the last file name component of NAME. If
@@ -20,7 +22,7 @@ char* last_component(char const* name)
             saw_slash = true;
         else if(saw_slash)
         {
-            base = p
+            base = p;
             saw_slash = false;
         }
     }
