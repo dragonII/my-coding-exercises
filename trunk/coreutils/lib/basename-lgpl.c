@@ -1,4 +1,4 @@
-//#include <config.h>
+#include <config.h>
 #include <stdbool.h>  // for type bool
 #include "dirname.h"
 

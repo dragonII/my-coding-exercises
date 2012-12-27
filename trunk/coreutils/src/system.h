@@ -1,12 +1,18 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <limits.h>
+#include <string.h>
 
 #include <locale.h>
 
+#define HELP_OPTION_DESCRIPTION \
+    _("         --help      display this help and exit\n")
+#define VERSION_OPTION_DESCRIPTION \
+    _("         --version   output version information and exit\n")
+
 /* Take care of NLS matters. (Native Language String?)*/
 
-#include "gettext.h"
+//#include "gettext.h"
 #if ! ENABLE_NLS
 # undef textdomain
 # define textdomain(Domainname) /* empty */
@@ -28,6 +34,9 @@ select_plural(uintmax_t n)
     return ( n <= ULONG_MAX ? n : n % PLURAL_REDECER + PLURAL_REDECER);
 }
 
+extern const char* program_name;
+extern char* last_component(char const* name);
+
 static inline void
 emit_ancillary_info()
 {
@@ -40,7 +49,7 @@ emit_ancillary_info()
     fputs(_("General help using GNU software: <http://www.gnu.org/gethelp/>\n"),
             stdout);
 
-    const char *lc_message = setlocale(LC_MESSAGE, NULL);
+    const char *lc_message = setlocale(LC_MESSAGES, NULL);
     if(lc_message && strncmp(lc_message, "en_", 3))
     {
         printf(_("Report %s translation bugs to "
