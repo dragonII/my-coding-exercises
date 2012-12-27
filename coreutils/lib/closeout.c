@@ -1,9 +1,13 @@
 #include <config.h>
 
 #include <errno.h>
+#include <error.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
+
+#include "close-stream.h"
+#include "exitfail.h"
 
 #include "gettext.h"
 #define  _(msgid)   gettext(msgid)
