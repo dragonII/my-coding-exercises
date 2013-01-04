@@ -3,7 +3,7 @@
 
 #define myrandom(x) (int)random()%x
 
-static const int ARRAY_MAX = 11;
+static const int ARRAY_MAX = 100;
 
 void init_array(int a[], int array_max)
 {
@@ -11,9 +11,17 @@ void init_array(int a[], int array_max)
     for(i = 0; i < array_max; i++)
     {
         a[i] = myrandom(ARRAY_MAX * 2);
-        printf("%d ", a[i]);
     }
-    printf("\n");
+}
+
+void print_array(int a[], int left, int right)
+{
+    int i;
+    printf("from [%d] to [%d]\n", left, right);
+    for(i = left; i <= right; i++)
+        printf("%d, ", a[i]);
+    printf("\n\n");
+    return;
 }
 
 void swap(int* a, int* b)
@@ -35,8 +43,10 @@ int media3(int a[], int left, int right)
     if(a[center] > a[right])
         swap(&a[center], &a[right]);
 
-    swap(&a[center], &a[right]);
-    return a[right];
+    swap(&a[center], &a[right - 1]);
+    //printf("media3\n");
+    //print_array(a, left, right);
+    return a[right - 1];
 }
       
 
@@ -45,10 +55,7 @@ void quicksort(int a[], int left, int right)
     if(right - left < 1)
         return;
 
-    int i, j, k;
-    //int pivotIndex = (left + right) / 2;
-    //swap(&a[pivotIndex], &a[right]);
-    //pivotIndex = right;
+    int i, j;
 
     int pivot = media3(a, left, right);
 
@@ -57,21 +64,16 @@ void quicksort(int a[], int left, int right)
 
     for(;;)
     {
-        while(a[i] < pivot)
-            i++;
-        while(a[j] > pivot)
-            j--;
+        while(a[++i] < pivot) {}
+        while(a[--j] > pivot) {}
         if(i < j)
             swap(&a[i], &a[j]);
         else
             break;
     }
-    swap(&a[i], &a[right]);
-    //pivotIndex = i;
-
-    for(k = left; k <= right; k++)
-        printf("%d ", a[k]);
-    printf("\n");
+    swap(&a[i], &a[right - 1]);
+    //printf("quicksort\n");
+    //print_array(a, left, right);
 
     quicksort(a, left, i - 1);
     quicksort(a, i + 1, right);
@@ -80,13 +82,15 @@ void quicksort(int a[], int left, int right)
 
 int main()
 {
-    int i;
     int array[ARRAY_MAX];
+
     init_array(array, ARRAY_MAX);
+    print_array(array, 0, ARRAY_MAX - 1);
+
     quicksort(array, 0, ARRAY_MAX - 1);
-    for(i = 0; i < ARRAY_MAX; i++)
-        printf("%d ", array[i]);
-    printf("\n");
+
+    print_array(array, 0, ARRAY_MAX - 1);
+
     return 0;
 }
 
