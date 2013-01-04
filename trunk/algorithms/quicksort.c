@@ -44,15 +44,13 @@ int media3(int a[], int left, int right)
         swap(&a[center], &a[right]);
 
     swap(&a[center], &a[right - 1]);
-    //printf("media3\n");
-    //print_array(a, left, right);
     return a[right - 1];
 }
       
 
 void quicksort(int a[], int left, int right)
 {
-    if(right - left < 1)
+    if(right == left)
         return;
 
     int i, j;
@@ -72,11 +70,11 @@ void quicksort(int a[], int left, int right)
             break;
     }
     swap(&a[i], &a[right - 1]);
-    //printf("quicksort\n");
-    //print_array(a, left, right);
 
-    quicksort(a, left, i - 1);
-    quicksort(a, i + 1, right);
+    if(i > left)
+        quicksort(a, left, i - 1);
+    if(right > i)
+        quicksort(a, i + 1, right);
 }
 
 
