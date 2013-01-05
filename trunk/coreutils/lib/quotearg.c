@@ -1,6 +1,6 @@
 #include "quotearg.h"
 
-char* quotearg_colon(char const* arg)
+const char* quotearg_colon(const char* arg)
 {
     //return quotearg_char(arg, ':');
     return arg;

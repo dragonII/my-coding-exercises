@@ -5,6 +5,7 @@
 #include "error.h"
 #include "exitfail.h"
 #include "gettext.h"
+#define _(msgid) gettext(msgid)
 
 void xalloc_die(void)
 {

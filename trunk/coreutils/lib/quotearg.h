@@ -3,6 +3,6 @@
 #ifndef _QUOTEARG_H
 #define _QUOTEARG_H
 
-char* quotearg_colon(char const* arg);
+const char* quotearg_colon(const char* arg);
 
 #endif

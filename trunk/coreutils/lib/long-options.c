@@ -43,7 +43,7 @@ void parse_long_options(int argc, char** argv,
             {
                 va_list authors;
                 va_start(authors, usage_func);
-                version_etc_va(stdout, command_name, package, version, authors);
+                //version_etc_va(stdout, command_name, package, version, authors);
                 exit(0);
             }
             default:
