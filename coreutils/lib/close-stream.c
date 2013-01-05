@@ -6,6 +6,8 @@
 
 #include <errno.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdio_ext.h>
 
 /* Close STREAM. Return 0 if successful, EOF (setting errno)
    otherwise. A failure might set errno to 0 if the error number
