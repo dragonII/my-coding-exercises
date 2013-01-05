@@ -8,6 +8,7 @@
 
 #include "close-stream.h"
 #include "exitfail.h"
+#include "quotearg.h"
 
 #include "gettext.h"
 #define  _(msgid)   gettext(msgid)
