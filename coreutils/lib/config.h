@@ -6,5 +6,8 @@
 #define PACKAGE             "coreutils"
 
 
+/* Define to 1 if you have the `sync' function. */
+#define HAVE_SYNC 1
+
 
 #endif

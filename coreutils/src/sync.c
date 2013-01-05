@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include <unistd.h>  // sync(2)
 
 #include "system.h"
 #include "error.h"
@@ -11,7 +12,8 @@
 #include "version.h"
 
 #define PROGRAM_NAME "sync"
-#define AUTHORS proper_name("Jim Meyering")
+//#define AUTHORS proper_name("Jim Meyering")
+#define AUTHORS "Jim Meyering"
 
 void usage(int status)
 {
