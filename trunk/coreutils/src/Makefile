@@ -16,7 +16,7 @@ INFLAGS=-I../lib
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
 
-#TARGET=sync
+TARGET=sync
 
 all: $(OBJECTS)
 

@@ -5,6 +5,8 @@
 
 #include <locale.h>
 
+#include "progname.h"
+
 #define HELP_OPTION_DESCRIPTION \
     _("         --help      display this help and exit\n")
 #define VERSION_OPTION_DESCRIPTION \
@@ -12,7 +14,7 @@
 
 /* Take care of NLS matters. (Native Language String?)*/
 
-//#include "gettext.h"
+#include "gettext.h"
 #if ! ENABLE_NLS
 # undef textdomain
 # define textdomain(Domainname) /* empty */

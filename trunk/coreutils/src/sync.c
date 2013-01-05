@@ -7,6 +7,8 @@
 #include "system.h"
 #include "error.h"
 #include "long-options.h"
+#include "closeout.h"
+#include "version.h"
 
 #define PROGRAM_NAME "sync"
 #define AUTHORS proper_name("Jim Meyering")
