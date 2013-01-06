@@ -1,3 +1,7 @@
+#ifndef __CONFIG_H
+#define __CONFIG_H
+
+
 #include <stdio.h>
 #include <stdint.h>
 #include <limits.h>
@@ -69,3 +73,10 @@ emit_ancillary_info()
 #ifndef initialize_main
 # define initialize_main(ac, av)
 #endif
+
+static inline char* bad_cast(char* s)
+{
+    return (char*)s;
+}
+
+#endif // __CONFIG_H
