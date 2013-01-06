@@ -1,11 +1,12 @@
 /* Uitlity to accept --help and --version options as unobtrusively as possible.*/
 
-#include "long-options.h"
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
+
+#include "long-options.h"
+#include "version-etc.h"
 
 static struct option long_options[] =
 {
@@ -43,7 +44,7 @@ void parse_long_options(int argc, char** argv,
             {
                 va_list authors;
                 va_start(authors, usage_func);
-                //version_etc_va(stdout, command_name, package, version, authors);
+                version_etc_va(stdout, command_name, package, version, authors);
                 exit(0);
             }
             default:
