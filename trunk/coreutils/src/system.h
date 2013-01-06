@@ -6,6 +6,7 @@
 #include <locale.h>
 
 #include "progname.h"
+#include "config.h"
 
 #define HELP_OPTION_DESCRIPTION \
     _("         --help      display this help and exit\n")
