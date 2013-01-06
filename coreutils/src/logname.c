@@ -49,10 +49,11 @@ int main(int argc, char** argv)
     parse_long_options(argc, argv, PROGRAM_NAME, PACKAGE_NAME, Version,
                         usage, AUTHORS, (char const*)NULL);
     rc = getopt_long(argc, argv, "", NULL, NULL);
-    //printf("getopt_long return: %d\n", rc);
+    printf("getopt_long return: %d\n", rc);
     if(rc != -1)
         usage(EXIT_FAILURE);
 
+    printf("optind: %d\n", optind);
     if(optind < argc)
     {
         error(0, 0, _("extra operand %s"), quote(argv[optind]));
