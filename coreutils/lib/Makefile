@@ -21,8 +21,5 @@ all: $(OBJECTS)
 $(OBJ_DIR)/%.o: %.c
 	$(CC) $(INFLAGS) $(CFLAGS) $(DDEBUG) $< -o $@
 
-#$(OBJ_DIR)/%.o: %.c
-#	$(CC) $(CFLAGS) $(DDEBUG) $< -o $@
-
 clean:
 	${RM} -f $(OBJECTS)

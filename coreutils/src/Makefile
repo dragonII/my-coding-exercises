@@ -16,15 +16,10 @@ INFLAGS=-I../lib
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
 
-TARGET=sync
-
 all: $(OBJECTS)
-
-#$(TARGET): $(OBJECTS)
-#	$(CC) $(LDFLAGS) $(OBJECTS) -o $(BIN_DIR)/$@
 
 $(OBJ_DIR)/%.o: %.c
 	$(CC) $(INFLAGS) $(CFLAGS) $(DDEBUG) $< -o $@
 
 clean:
-	${RM} -f $(OBJECTS) $(BIN_DIR)/${TARGET}
+	${RM} -f $(OBJECTS) 
