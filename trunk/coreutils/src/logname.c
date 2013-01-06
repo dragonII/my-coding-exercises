@@ -36,6 +36,7 @@ void usage(int status)
 int main(int argc, char** argv)
 {
     char* cp;
+    int rc;
 
     initialize_main(&argc, &argv);
     set_program_name(argv[0]);
@@ -47,7 +48,9 @@ int main(int argc, char** argv)
 
     parse_long_options(argc, argv, PROGRAM_NAME, PACKAGE_NAME, Version,
                         usage, AUTHORS, (char const*)NULL);
-    if(getopt_long(argc, argv, "", NULL, NULL) != -1)
+    rc = getopt_long(argc, argv, "", NULL, NULL);
+    //printf("getopt_long return: %d\n", rc);
+    if(rc != -1)
         usage(EXIT_FAILURE);
 
     if(optind < argc)
