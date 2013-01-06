@@ -11,15 +11,20 @@ CFLAGS=-Wall -c -g
 LDFLAGS=-g
 INFLAGS=-I../lib
 
-#DDEBUG=-D__DEBUG__
-
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
 
 all: $(OBJECTS)
 
+sync:sync.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$@
+
+logname: logname.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$@
+
 $(OBJ_DIR)/%.o: %.c
-	$(CC) $(INFLAGS) $(CFLAGS) $(DDEBUG) $< -o $@
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $@
+
 
 clean:
 	${RM} -f $(OBJECTS) 
