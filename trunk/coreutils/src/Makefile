@@ -17,10 +17,10 @@ OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
 all: $(OBJECTS)
 
 sync:sync.c
-	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$@
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
 logname: logname.c
-	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$@
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
 $(OBJ_DIR)/%.o: %.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $@
