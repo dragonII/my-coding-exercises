@@ -11,6 +11,7 @@
 #include "quote.h"
 #include "closeout.h"
 #include "version.h"
+#include "dirname-lgpl.h"
 
 #define PROGRAM_NAME "dirname"
 #define AUTHORS "Jim Meyering and David MacKenzie"
