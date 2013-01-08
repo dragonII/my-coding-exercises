@@ -7,7 +7,7 @@ BIN_DIR=../bin
 
 CC=cc
 RM=rm
-CFLAGS=-Wall -c -g
+CFLAGS=-Wall -c -g -v
 LDFLAGS=-g
 INFLAGS=-I../lib
 
