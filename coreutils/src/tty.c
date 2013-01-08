@@ -10,10 +10,12 @@
 #include <sys/types.h>
 #include <error.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "system.h"
 #include "quote.h"
 #include "closeout.h"
+#include "version.h"
 
 /* Exit status */
 enum

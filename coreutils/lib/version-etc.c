@@ -69,3 +69,27 @@ void version_etc_va(FILE* stream,
                     (const char**)authtab, n_authors);
 }
 
+/* Display the --version information the standard way.
+
+   If COMMAND_NAME is NULL, the PACKAGE is assumed to be the name of
+   the program. The formats are therefore:
+
+   PACKAGE VERSION
+
+   or
+
+   COMMAND_NAME (PACKAGE) VERSION.
+
+   The authors names are passed as seperate arguments, with an additional
+   NULL argument at the end. */
+
+void version_etc(FILE* stream,
+                 const char* command_name, const char* package,
+                 const char* version, /*const char* author1, ...*/ ...)
+{
+    va_list authors;
+
+    va_start(authors, version);
+    version_etc_va(stream, command_name, package, version, authors);
+    va_end(authors);
+}

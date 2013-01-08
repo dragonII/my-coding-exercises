@@ -11,11 +11,8 @@
 
 #include "progname.h"
 #include "config.h"
+#include "version-etc.h"
 
-#define HELP_OPTION_DESCRIPTION \
-    _("         --help      display this help and exit\n")
-#define VERSION_OPTION_DESCRIPTION \
-    _("         --version   output version information and exit\n")
 
 /* Take care of NLS matters. (Native Language String?)*/
 
@@ -29,6 +26,15 @@
 
 #define _(msgid) gettext (msgid)
 #define N_(msgid) msgid
+
+#include "exitfail.h"
+
+static inline void
+initialize_exit_failure(int status)
+{
+    if(status != EXIT_FAILURE)
+        exit_failure = status;
+}
 
 /* Return a value that pluralizes the same way that N does, in all
    languages we know of. */
@@ -78,5 +84,42 @@ static inline char* bad_cast(char* s)
 {
     return (char*)s;
 }
+
+/* Factor out some of the common --help and --version processing code. */
+
+/* These enum values cannot possibly conflict with the option values
+   ordinarily used by commands, including CHAR_MAX + 1, etc. Avoid
+   CHAR_MIN - 1, as it may equal -1, the getopt end-of-options values. */
+
+enum
+{
+    GETOPT_HELP_CHAR = (CHAR_MIN - 2),
+    GETOPT_VERSION_CHAR = (CHAR_MIN - 3)
+};
+
+#define GETOPT_HELP_OPTION_DECL \
+    "help", no_argument, NULL, GETOPT_HELP_CHAR
+#define GETOPT_VERSION_OPTION_DECL \
+    "version", no_argument, NULL, GETOPT_VERSION_CHAR
+
+#define case_GETOPT_HELP_CHAR   \
+    case GETOPT_HELP_CHAR:      \
+        usage(EXIT_SUCCESS);    \
+        break;
+
+#define case_GETOPT_VERSION_CHAR(Program_name, Authors) \
+    case GETOPT_VERSION_CHAR:   \
+        version_etc(stdout, Program_name, PACKAGE_NAME, Version, Authors, \
+                    (char*)NULL); \
+        exit(EXIT_SUCCESS);         \
+        break;
+
+
+
+#define HELP_OPTION_DESCRIPTION \
+    _("         --help      display this help and exit\n")
+#define VERSION_OPTION_DESCRIPTION \
+    _("         --version   output version information and exit\n")
+
 
 #endif // __CONFIG_H
