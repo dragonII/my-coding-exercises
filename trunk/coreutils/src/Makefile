@@ -44,6 +44,8 @@ tty: tty.c
 #nproc: nproc.c
 #	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
+hostname: hostname.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
 
 $(OBJ_DIR)/%.o: %.c
