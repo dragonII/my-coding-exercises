@@ -1,0 +1,82 @@
+/* Detect the number of processors. */
+
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "nproc.h"
+
+unsigned long int num_processors(enum nproc_query query)
+{
+    if(query == NPROC_CURRENT_OVERRIDABLE)
+    {
+        /* Test the environment variable OMP_NUM_THREADS, recognized also by all
+           programs that are based on OpenMP. The OpenMP spec says that the
+           value assigned to the environment variable "may have leading and
+           trailing white space". */
+
+        const char* envvalue = getenv("OMP_NUM_THREADS");
+
+        if(envvalue != NULL)
+        {
+            while(*envvalue != '\0' && c_issapce(*envvalue))
+                envvalue++;
+            /* convert it from decimal to 'unsigned long' */
+            if(c_isdigit(*envvalue))
+            {
+                char* endptr = NULL;
+                unsigned long int value = strtoul(envvalue, &endptr, 10);
+
+                if(endptr != NULL)
+                {
+                    while(*endptr != '\0' && c_issapce(*endptr))
+                        endptr++;
+                    if(*endptr == '\0')
+                        return (value > 0 ? value : 1);
+                }
+            }
+        }
+        query = NPROC_CURRENT;
+    }
+    /* Here query is one of NPROC_ALL, NPROC_CURRENT */
+    /* On systems with a modern affinity mask system call, we have
+       sysconf(_SC_NPROCESSORS_CONF)
+            >= sysconf(_SC_NPROCESSORS_ONLN)
+                >= num_processors_via_affinity_mask()
+       The first number is the number of CPUs configured in the system.
+       The second number is the number of CPUs available to the scheduler.
+       The third number is the number of CPUs available to the current process.
+
+       Note! On Linux systems with gilibc, the first and second number come from
+       the /sys and /proc file system.
+       In some situations these file systems are not mounted, and the sysconf
+       call returns 1, which does not reflect the reality. */
+
+    if(query == NPROC_CURRENT)
+    {
+        /* Try the modern affinity mask system call. */
+        {
+            unsigned long nprocs = num_processors_via_affinity_mask();
+
+            if(nprocs > 0)
+                return nprocs;
+        }
+    }
+    else /* query = NPROC_ALL */
+    {
+#if __GLIBC__ >= 2 && defined __linux__
+        /* On Linux systems with glibc, this information comes from the /sys and
+           /proc file systems. 
+           In some situations these file systems are not mounted, and the
+           sysconf call returns 1. But we wish to guarantee that
+           num_processors(NPROC_ALL) >= num_processors(NPROC_CURRENT). */
+        if(nprocs == 1)
+        {
+            unsigned long nprocs_current = num_processors_via_affinity_mask();
+
+            if(nprocs_current > 0)
+                nprocs = nprocs_current;
+        }
+#endif
+        if(nprocs > 0)
+            return nprocs;
+
