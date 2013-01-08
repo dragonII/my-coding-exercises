@@ -40,6 +40,11 @@ dirname: dirname.c
 tty: tty.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
+#nproc not finished
+#nproc: nproc.c
+#	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
+
+
 
 $(OBJ_DIR)/%.o: %.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $@
