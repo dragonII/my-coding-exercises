@@ -1,14 +1,17 @@
 /* groups -- print the groups a user is in */
 
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <error.h>
 #include <getopt.h>
 #include <stdlib.h>
+#include <pwd.h>
 
 #include "system.h"
 #include "version.h"
 #include "closeout.h"
+#include "group-list.h"
 
 #define PROGRAM_NAME "groups"
 #define AUTHORS "David MacKenzie & James Youngman"
