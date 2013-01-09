@@ -7,8 +7,12 @@
 #include <grp.h>
 #include <error.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "group-list.h"
+#include "mgetgroups.h"
+#include "quote.h"
+
 #include "gettext.h"
 #define _(msgid) gettext(msgid)
 
