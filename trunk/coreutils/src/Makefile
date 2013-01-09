@@ -47,6 +47,9 @@ tty: tty.c
 hostname: hostname.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
+groups: groups.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
+
 
 $(OBJ_DIR)/%.o: %.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $@
