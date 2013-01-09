@@ -1,10 +1,12 @@
 /* xgethostname.c -- return current hostname with unlimited length */
 
-#include "xgethostname.h"
-
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+
+#include "xgethostname.h"
+#include "xalloc.h"
+
 
 #ifndef INITIAL_HOSTNAME_LENGTH
 # define INITIAL_HOSTNAME_LENGTH 34
