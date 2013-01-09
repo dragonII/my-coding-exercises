@@ -50,6 +50,9 @@ hostname: hostname.c
 groups: groups.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
+users: users.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
+
 
 $(OBJ_DIR)/%.o: %.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $@
