@@ -6,6 +6,18 @@
 #include <grp.h>
 
 #include "xalloc.h"
+#include "getugroups.h"
+
+static gid_t*
+realloc_groupbuf(gid_t* g, size_t num)
+{
+    if(xalloc_oversized(num, sizeof(*g)))
+    {
+        errno = ENOMEM;
+        return NULL;
+    }
+    return realloc(g, num * sizeof(*g));
+}
 
 /* Store the result in malloc'd storage.
    Set *GROUPS to the malloc'd list of all group IDs of which USERNAME
@@ -17,7 +29,7 @@
    don't modify *GROUPS, set errno, and return -1. Otherwise, return
    the number of groups. The resulting list may contain duplicates,
    but adjacent members will be distinct. */
-int mgetgroups(char* username, gid_t gid, gid_t** groups)
+int mgetgroups(const char* username, gid_t gid, gid_t** groups)
 {
     int max_n_groups;
     int ng;
@@ -75,7 +87,7 @@ int mgetgroups(char* username, gid_t gid, gid_t** groups)
     {
         if(errno == ENOSYS && (g = realloc_groupbuf(NULL, 1)))
         {
-            *group = g;
+            *groups = g;
             *g = gid;
             return gid != (gid_t) -1;
         }
@@ -144,7 +156,7 @@ int mgetgroups(char* username, gid_t gid, gid_t** groups)
 
 
 
-int xgetgroups(char* username, gid_t gid, gid_t** groups)
+int xgetgroups(const char* username, gid_t gid, gid_t** groups)
 {
     int result = mgetgroups(username, gid, groups);
     if(result == -1 && errno == ENOMEM)

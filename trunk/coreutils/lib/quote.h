@@ -4,8 +4,8 @@
 #ifndef _QUOTE_H
 #define _QUOTE_H
 
-char *quote_n(int n, char* name);
-char *quote(char *name);
+const char *quote_n(int n, const char* name);
+const char *quote(const char *name);
 
 
 #endif
