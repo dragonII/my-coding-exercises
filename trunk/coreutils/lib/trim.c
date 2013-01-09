@@ -1,5 +1,5 @@
 #include "trim.h"
-#include "xalloc-die.h"
+#include "xalloc.h"
 
 #include <ctype.h>
 #include <string.h>
