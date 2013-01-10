@@ -13,6 +13,7 @@
 #include "closeout.h"
 #include "version.h"
 #include "readutmp.h"
+#include "xalloc.h"
 
 #define PROGRAM_NAME "users"
 #define AUTHORS "Joseph Arceneaux & David MacKenzie"
@@ -65,6 +66,7 @@ static void users(const char* filename, int options)
     size_t n_users;
     STRUCT_UTMP* utmp_buf;
 
+    //printf("filename: %s\n", filename);
     if(read_utmp(filename, &n_users, &utmp_buf, options) != 0)
         error(EXIT_FAILURE, errno, "%s", filename);
 
