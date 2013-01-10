@@ -56,6 +56,9 @@ users: users.c
 basename: basename.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
+mkfifo: mkfifo.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
+
 
 $(OBJ_DIR)/%.o: %.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $@
