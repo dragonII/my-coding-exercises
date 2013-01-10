@@ -24,3 +24,12 @@ void* x2realloc(void *p, size_t *pn)
 {
     return x2nrealloc(p, pn, 1);
 }
+
+/* Allocates N bytes of memory dynamically, with error checking */
+void* xmalloc(size_t n)
+{
+    void* p = malloc(n);
+    if(!p && n != 0)
+        xalloc_die();
+    return p;
+}

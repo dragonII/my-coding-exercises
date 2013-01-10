@@ -14,6 +14,7 @@
    memory allocation failure. */
 void xalloc_die(void);
 
+void* xmalloc(size_t s);
 void* xrealloc(void* p, size_t s);
 void* x2realloc(void* p, size_t* pn);
 
@@ -62,6 +63,14 @@ x2nrealloc(void* p, size_t* pn, size_t s)
 
     *pn = n;
     return xrealloc(p, n * s);
+}
+
+static inline void*
+xnmalloc(size_t n, size_t s)
+{
+    if(xalloc_oversized(n, s))
+        xalloc_die();
+    return xmalloc(n * s);
 }
 
 
