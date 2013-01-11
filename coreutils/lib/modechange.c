@@ -8,26 +8,31 @@
    performance gain */
 
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <stdlib.h>
 
 #include "modechange.h"
 #include "xalloc.h"
 #include "stat-macros.h"
+#include "modechange.h"
 
-/* The traditional octal values corresponding to each mode bit. */
-#define SUID 04000
-#define SGID 02000
-#define SVTX 01000
-#define RUSR 00400
-#define WUSR 00200
-#define XUSR 00100
-#define RGRP 00040
-#define WGRP 00020
-#define XGRP 00010
-#define ROTH 00004
-#define WOTH 00002
-#define XOTH 00001
-#define ALLM 07777  /* all octal mode bits */
+///* The traditional octal values corresponding to each mode bit. */
+//#define SUID 04000
+//#define SGID 02000
+//#define SVTX 01000
+//#define RUSR 00400
+//#define WUSR 00200
+//#define XUSR 00100
+//#define RGRP 00040
+//#define WGRP 00020
+//#define XGRP 00010
+//#define ROTH 00004
+//#define WOTH 00002
+//#define XOTH 00001
+//#define ALLM 07777  /* all octal mode bits */
+//
+//#undef S_IRWXUGO
+//#define S_IRWXUGO (S_IRWXU | S_IRWXG | S_IRWXO)
 
 /* Convert OCTAL, which uses one of the traditional octal values, to
    an internal mode_t value. */
@@ -318,16 +323,19 @@ mode_t mode_adjust(mode_t oldmode, bool dir, mode_t umask_value,
            requested. */
         value &= (affected ? affected : ~umask_value) & ~omit_change;
 
-        switch(changes->op)
-        {
-            case '=':
                 /* If WHO was specified, preserve the previous values of
                    bits that are not affected by this change operation.
                    Otherwise, clear all the  bits. */
+
+        switch(changes->op)
+        {
+            case '=':
+            {
                 mode_t preserved = (affected ? ~affected : 0) | omit_change;
                 mode_bits |= CHMOD_MODE_BITS & ~preserved;
                 newmode = (newmode & preserved) | value;
                 break;
+            }
 
             case '+':
                 mode_bits |= value;

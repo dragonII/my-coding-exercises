@@ -56,6 +56,7 @@ users: users.c
 basename: basename.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
+# need link libselinux.so for executable binary
 mkfifo: mkfifo.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
