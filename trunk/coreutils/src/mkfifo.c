@@ -4,14 +4,17 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <error.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <selinux/selinux.h>
-//#include <sys/stat.h>
+#include <sys/stat.h>
 #include <linux/stat.h>
 
 #include "system.h"
 #include "quote.h"
 #include "version.h"
+#include "closeout.h"
+#include "modechange.h"
 
 #define PROGRAM_NAME "mkfifo"
 #define AUTHORS "David MacKenzie"
@@ -20,8 +23,8 @@ static struct option longopts[] =
 {
     {GETOPT_SELINUX_CONTEXT_OPTION_DECL},
     {"mode", required_argument, NULL, 'm'},
-    {GETOPT_HELP_CHAR},
-    {GETOPT_VERSION_CHAR},
+    {GETOPT_HELP_OPTION_DECL},
+    {GETOPT_VERSION_OPTION_DECL},
     {NULL, 0, NULL, 0}
 };
 
@@ -87,6 +90,7 @@ int main(int argc, char** argv)
         }
     }
 
+    printf("optind = %d\n", optind);
     if(optind == argc)
     {
         error(0, 0, _("missing operand"));
@@ -112,11 +116,14 @@ int main(int argc, char** argv)
     }
 
     for(; optind < argc; ++optind)
+    {
+        printf("argv[%d]: %s\n", optind, argv[optind]);
         if(mkfifo(argv[optind], newmode) != 0)
         {
             error(0, errno, _("cannot create fifo %s"), quote(argv[optind]));
             exit_status = EXIT_FAILURE;
         }
+    }
 
     exit(exit_status);
 }
