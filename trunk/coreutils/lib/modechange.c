@@ -12,6 +12,7 @@
 
 #include "modechange.h"
 #include "xalloc.h"
+#include "stat-macros.h"
 
 /* The traditional octal values corresponding to each mode bit. */
 #define SUID 04000
@@ -54,6 +55,26 @@ static mode_t octal_to_mode(unsigned int octal)
                         | (octal & XOTH ? S_IXOTH : 0)));
 }
 
+/* Special operations flags */
+enum 
+{
+    /* For the sentinel at the end of the mode changes array */
+    MODE_DONE,
+
+    /* The typical case */
+    MODE_ORDINARY_CHANGE,
+
+    /* In addition to the typical case, affect the execute bits if at
+       least one execute bit is set already, or if the file is a 
+       directory. */
+    MODE_X_IF_ANY_X,
+
+    /* Instead of the typical case, copy some existing permissions for
+       u, g, or o onto the other two. Which of u, g, or o is copied
+       is determined by which bits are set in the `value' field. */
+    MODE_COPY_EXISTING
+};
+
 /* Descriptition of a mode change */
 struct mode_change
 {
@@ -63,6 +84,22 @@ struct mode_change
     mode_t value;           /* Bits to add/remove */
     mode_t mentioned;       /* Bit explicitly mentioned */
 };
+
+/* Return a mode_change array with the specified `=add'-style
+   mode change operation, where NEW_MODE is `add' and MENTIONED
+   contains the bits explicitly mentioned in the mode are MENTIONED. */
+static struct mode_change*
+make_node_op_equals(mode_t new_mode, mode_t mentioned)
+{
+    struct mode_change* p = xmalloc(2 * sizeof *p);
+    p->op = '=';
+    p->flag = MODE_ORDINARY_CHANGE;
+    p->affected = CHMOD_MODE_BITS;
+    p->value = new_mode;
+    p->mentioned = mentioned;
+    p[1].flag = MODE_DONE;
+    return p;
+}
 
 /* Return a pointer to an array of file mode change operations created from
    MODE_STRING, an ASCII string that contains either an octal number
@@ -220,4 +257,92 @@ struct mode_change* mode_compile(char* mode_string)
 invalid:
     free(mc);
     return NULL;
+}
+
+
+/* Return the file mode bits of OLDMODE (which is the mode of a
+   directory if DIR), assuming the umask is UMASK_VALUE, adjusted as
+   indicated by the list of change operations CHANGES. If DIR, the
+   type 'X' change affects the returned value even if no execute bits
+   were set in OLDMODE, and set user and group ID bits are preserved
+   unless CHANGES mentioned them. If PMODE_BITS is not null, store into
+   *PMODE_BITS a mask denoting file mode bits that are affected by
+   CHANGES.
+
+   The returned value and *PMODE_BITS contain only file mode bits.
+   For example, they have the S_IFMT bits cleared on a standard
+   Unix-like host. */
+mode_t mode_adjust(mode_t oldmode, bool dir, mode_t umask_value,
+                    struct mode_change* changes, mode_t* pmode_bits)
+{
+    /* the adjusted mode */
+    mode_t newmode = oldmode & CHMOD_MODE_BITS;
+
+    /* File mode bits that CHANGES cares about */
+    mode_t mode_bits = 0;
+
+    for(; changes->flag != MODE_DONE; changes++)
+    {
+        mode_t affected = changes->affected;
+        mode_t omit_change = (dir ? S_ISUID | S_ISGID : 0) & ~changes->mentioned;
+        mode_t value = changes->value;
+
+        switch(changes->flag)
+        {
+            case MODE_ORDINARY_CHANGE:
+                break;
+
+            case MODE_COPY_EXISTING:
+                /* Isolate in `value' the bits in `newmode' to copy */
+                value &= newmode;
+
+                /* copy the isolated bits to the other two parts */
+                value |= ((value & (S_IRUSR | S_IRGRP | S_IROTH)
+                            ? S_IRUSR | S_IRGRP | S_IROTH : 0)
+                           | (value & (S_IWUSR | S_IWGRP | S_IWOTH)
+                            ? S_IWUSR | S_IWGRP | S_IWOTH : 0)
+                           | (value & (S_IXUSR | S_IXGRP | S_IXOTH)
+                            ? S_IXUSR | S_IXGRP | S_IXOTH : 0));
+                break;
+
+            case MODE_X_IF_ANY_X:
+                /* Affect the execute bits if execute bits are already set
+                   or if the file is a directory */
+                if((newmode & (S_IXUSR | S_IXGRP | S_IXOTH)) | dir)
+                    value |= S_IXUSR | S_IXGRP | S_IXOTH;
+                break;
+        }
+
+        /* If WHO was specified, limit the change to the affected bits.
+           Otherwise, apply the umask. Either way, omit changes as
+           requested. */
+        value &= (affected ? affected : ~umask_value) & ~omit_change;
+
+        switch(changes->op)
+        {
+            case '=':
+                /* If WHO was specified, preserve the previous values of
+                   bits that are not affected by this change operation.
+                   Otherwise, clear all the  bits. */
+                mode_t preserved = (affected ? ~affected : 0) | omit_change;
+                mode_bits |= CHMOD_MODE_BITS & ~preserved;
+                newmode = (newmode & preserved) | value;
+                break;
+
+            case '+':
+                mode_bits |= value;
+                newmode = value;
+                break;
+
+            case '-':
+                mode_bits |= value;
+                newmode &= ~value;
+                break;
+        }
+    }
+
+    if(pmode_bits)
+        *pmode_bits = mode_bits;
+
+    return newmode;
 }
