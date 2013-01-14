@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <stdio.h>
 
-#define XSTRTOD strtod
+#define XSTRTOD xstrtod
 #define DOUBLE double
 
 /* An interface to a string-to-floating-pointe conversion function that
@@ -16,7 +16,7 @@
    false and don't modify *RESULT upon any failure. CONVERT
    specifies the conversion function, e.g., strtod itself. */
 bool XSTRTOD(const char* str, const char** ptr, DOUBLE* result,
-                DOUBLE (*convert)(char*, char**))
+                DOUBLE (*convert)(const char*, char**))
 {
     DOUBLE val;
     char* terminator;
