@@ -64,6 +64,8 @@ sleep: sleep.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 printenv: printenv.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
+env: env.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
 
 $(OBJ_DIR)/%.o: %.c
