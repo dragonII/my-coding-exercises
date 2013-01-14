@@ -59,6 +59,8 @@ basename: basename.c
 # need link libselinux.so for executable binary
 mkfifo: mkfifo.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
+sleep: sleep.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
 
 $(OBJ_DIR)/%.o: %.c
