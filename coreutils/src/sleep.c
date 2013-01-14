@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <getopt.h>
 #include <error.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -11,6 +12,10 @@
 #include "long-options.h"
 #include "quote.h"
 #include "closeout.h"
+#include "version.h"
+#include "c-strtod.h"
+#include "xstrtod.h"
+#include "xnanosleep.h"
 
 #define PROGRAM_NAME "sleep"
 #define AUTHORS "Jim meyering & Paul Eggert"
@@ -18,7 +23,8 @@
 void usage(int status)
 {
     if(status != EXIT_SUCCESS)
-        fprintf(stderr, _("Try `%s --help' for more information.\n"));
+        fprintf(stderr, _("Try `%s --help' for more information.\n"),
+                    program_name);
     else
     {
         printf(_("\
@@ -96,7 +102,7 @@ int main(int argc, char** argv)
         usage(EXIT_FAILURE);
     }
 
-    for(i = optind; i < argc, i++)
+    for(i = optind; i < argc; i++)
     {
         double s;
         const char* p;

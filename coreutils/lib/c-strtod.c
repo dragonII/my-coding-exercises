@@ -37,7 +37,7 @@ DOUBLE C_STRTOD(char* nptr, char** endptr)
 
         setlocale(LC_NUMERIC, saved_locale);
         free(saved_locale);
-        errno = saved_locale;
+        errno = saved_errno;
     }
 
     return r;

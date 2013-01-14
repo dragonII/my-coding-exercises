@@ -6,6 +6,6 @@
 #include <stdbool.h>
 
 bool xstrtod(const char* str, const char** ptr, double* result,
-                double (*convert)(char*, char**));
+                double (*convert)(const char*, char**));
 
 #endif
