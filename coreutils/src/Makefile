@@ -13,6 +13,7 @@ INFLAGS=-I../lib
 
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
+OBJ_DIR_BINARIES=$(addprefix $(OBJ_DIR)/,$(subst .c,, $(SOURCES)))
 
 all: $(OBJECTS)
 
@@ -61,6 +62,8 @@ mkfifo: mkfifo.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 sleep: sleep.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
+printenv: printenv.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
 
 $(OBJ_DIR)/%.o: %.c
@@ -68,4 +71,4 @@ $(OBJ_DIR)/%.o: %.c
 
 
 clean:
-	${RM} -f $(OBJECTS) 
+	${RM} -f $(OBJECTS) $(OBJ_DIR_BINARIES)
