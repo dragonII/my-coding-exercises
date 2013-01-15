@@ -7,6 +7,7 @@
 
 #include "system.h"
 #include "quote.h"
+#include "closeout.h"
 
 #define PROGRAM_NAME "readlink"
 #define AUTHORS "Dmitry V. Levin"
