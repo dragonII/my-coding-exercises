@@ -1,13 +1,35 @@
 /* Return the canonical absolute name of a given file. */
 
 #include "canonicalize.h"
-#include "xmalloc.h"
+#include "xalloc.h"
 #include "dirname.h"
 
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
 
+/* Return true if we've already seen the triple, <FILENAME, dev, ino>.
+   If *HT is not initialized, initialize it */
+static bool seen_triple(Hash_table** ht, char* filename, struct stat* st)
+{
+    if(*ht == NULL)
+    {
+        size_t initial_capacity = 7;
+        *ht = hash_initialize(initial_capacity,
+                              NULL,
+                              triple_hash,
+                              triple_compare_ino_str,
+                              triple_free);
+        if(*ht == NULL)
+            xalloc_die();
+    }
+
+    if(seen_file(*ht, filename, st))
+        return true;
+
+    record_file(*ht, filename, st);
+    return false;
+}
 
 /* Return the caonical absolute name of file NAME, while treating
    missing elements according to CAN_MODE. A canonical name
@@ -36,7 +58,7 @@ char* canonicalize_filename_mode(const char* name, canonicalize_mode_t can_mode)
         return NULL;
     }
 
-    if(name[0] != '/')
+    if(name[0] != '/') /* Absolute path name */
     {
         rname = xgetcwd();
         if(!rname)
@@ -54,7 +76,7 @@ char* canonicalize_filename_mode(const char* name, canonicalize_mode_t can_mode)
             rname_limit = dest;
         }
     }
-    else
+    else /* Relative path name */
     {
         rname = xmalloc(PATH_MAX);
         rname_limit = rname + PATH_MAX;
@@ -84,7 +106,7 @@ char* canonicalize_filename_mode(const char* name, canonicalize_mode_t can_mode)
             if(dest > rname + 1)
                 while((--dest)[-1] != '/');
             if(DOUBLE_SLASH_IS_DISTINCT_ROOT && dest == rname + 1
-                && *dest == '/')
+                        && *dest == '/')
                 dest++;
         }
         else
