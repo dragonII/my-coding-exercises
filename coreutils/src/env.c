@@ -6,6 +6,8 @@
 #include <error.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#define  __USE_GNU
+#include <unistd.h>
 
 #include "system.h"
 #include "quote.h"
@@ -62,7 +64,7 @@ int main(int argc, char** argv)
     initialize_exit_failure(EXIT_CANCELED);
     atexit(close_stdout);
 
-    while((optc = getopt_long(argc, argc, "+iu:0", longopts, NULL)) != -1)
+    while((optc = getopt_long(argc, argv, "+iu:0", longopts, NULL)) != -1)
     {
         switch(optc)
         {
@@ -82,7 +84,8 @@ int main(int argc, char** argv)
         }
     }
 
-    if(optind < argc && STREQ(argv[optind], "-"))
+    //if(optind < argc && STREQ(argv[optind], "-"))
+    if(optind < argc && strncmp(argv[optind], "-", 1))
         ignore_environment = true;
 
     if(ignore_environment)
@@ -96,7 +99,7 @@ int main(int argc, char** argv)
         if(optc == 'u' && unsetenv(optarg))
             error(EXIT_CANCELED, errno, _("cannot unset %s"), quote(optarg));
 
-    if(optind < argc && STREQ(argv[optind], "-"))
+    if(optind < argc && strncmp(argv[optind], "-", 1))
         ++optind;
 
     while(optind < argc && strchr(argv[optind], '='))

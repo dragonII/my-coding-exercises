@@ -13,7 +13,6 @@
 #include "config.h"
 #include "version-etc.h"
 
-
 /* Take care of NLS matters. (Native Language String?)*/
 
 #include "gettext.h"
@@ -26,6 +25,26 @@
 
 #define _(msgid) gettext (msgid)
 #define N_(msgid) msgid
+
+#include <errno.h>
+/* Some systems don't define this; POSIX mentions it but says it is
+   obsolete, so gnulib does not provide it either. */
+#ifndef ENODATA
+# define ENODATA (-1)
+#endif
+
+#include <stdbool.h>
+#include <stdlib.h>
+#include "version.h"
+
+/* Exit statuses for program like 'env' that exec other programs. */
+enum
+{
+    EXIT_TIMEDOUT       = 124,      /* Time expired before child completed */
+    EXIT_CANCELED       = 125,      /* Internal error piror to exec attempt */
+    EXIT_CANNOT_INVOKE  = 126,      /* Program located, but not usable */
+    EXIT_ENOENT         = 127       /* Could not find program to exec */
+};
 
 #include "exitfail.h"
 
