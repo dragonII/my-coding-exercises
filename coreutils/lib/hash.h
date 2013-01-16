@@ -3,6 +3,7 @@
 #ifndef HASH_H
 #define HASH_H
 
+#include <sys/types.h>
 #include <stdbool.h>
 
 typedef size_t (*Hash_hasher) (const void*, size_t);

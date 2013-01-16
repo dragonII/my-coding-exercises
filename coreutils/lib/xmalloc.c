@@ -33,3 +33,17 @@ void* xmalloc(size_t n)
         xalloc_die();
     return p;
 }
+
+/* Clone an object P os size S, with error checking. There's no need
+   for xnmemdup(P, N, S), since xmemdup(P, N * S) works without any
+   need for an arithmetic overflow check. */
+void* xmemdup(void* p, size_t s)
+{
+    return memcpy(xmalloc(s), p, s);
+}
+
+/* Clone string */
+char* xstrdup(char* string)
+{
+    return xmemdup(string, strlen(string) + 1);
+}
