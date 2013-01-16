@@ -3,10 +3,16 @@
 #include "canonicalize.h"
 #include "xalloc.h"
 #include "dirname.h"
+#include "hash.h"
+#include "hash-triple.h"
+#include "file-set.h"
+#include "xgetcwd.h"
 
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <stdbool.h>
+#include <limits.h>
 
 /* Return true if we've already seen the triple, <FILENAME, dev, ino>.
    If *HT is not initialized, initialize it */
@@ -58,7 +64,7 @@ char* canonicalize_filename_mode(const char* name, canonicalize_mode_t can_mode)
         return NULL;
     }
 
-    if(name[0] != '/') /* Absolute path name */
+    if(name[0] != '/') /* Relative path name */
     {
         rname = xgetcwd();
         if(!rname)
@@ -76,7 +82,7 @@ char* canonicalize_filename_mode(const char* name, canonicalize_mode_t can_mode)
             rname_limit = dest;
         }
     }
-    else /* Relative path name */
+    else /* Absolute path name */
     {
         rname = xmalloc(PATH_MAX);
         rname_limit = rname + PATH_MAX;

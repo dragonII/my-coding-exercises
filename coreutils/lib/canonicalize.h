@@ -17,8 +17,8 @@ enum canonicalize_mode_t
     CAN_MISSING = 2
 };
 
-typedef canonicalize_mode_t canonicalize_mode_t;
+typedef enum canonicalize_mode_t canonicalize_mode_t;
 
-char* canonicalize_filename_mode(const char* name, canonicalize_mode_t can_mode)
+char* canonicalize_filename_mode(const char* name, canonicalize_mode_t can_mode);
 
 #endif

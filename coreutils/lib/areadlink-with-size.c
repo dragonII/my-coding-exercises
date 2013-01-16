@@ -1,6 +1,21 @@
 /* readlink wrapper to return the link name in malloc'd storage. */
 
 #include <errno.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <limits.h>
+#include <stdint.h>
+
+#include "areadlink.h"
+
+/* SYMLINK_MAX is used only for an initial memory-allocation sanity
+   check, so it's OK to guess too small on hosts where there is no
+   arbitrary limit to symbolic link length */
+#ifndef SYMLINK_MAX
+# define SYMLINK_MAX 1024
+#endif
+
+#define MAXSIZE (SIZE_MAX < SSIZE_MAX ? SIZE_MAX : SSIZE_MAX)
 
 /* Call readlink to get the symbolic link value of FILE.
    SIZE is a hint as to how long the link is expected to be;
