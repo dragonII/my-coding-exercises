@@ -17,6 +17,8 @@ void xalloc_die(void);
 void* xmalloc(size_t s);
 void* xrealloc(void* p, size_t s);
 void* x2realloc(void* p, size_t* pn);
+void* xmemdup(void* p, size_t s);
+char* xstrdup(char* str);
 
 /* Return 1 if an array of N objects, each of size S, cannot exist due
    to size arithmetic overflow. S must be positive and N must be
