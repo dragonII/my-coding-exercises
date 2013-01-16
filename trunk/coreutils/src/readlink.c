@@ -4,10 +4,13 @@
 #include <getopt.h>
 #include <sys/types.h>
 #include <error.h>
+#include <stdbool.h>
 
 #include "system.h"
 #include "quote.h"
 #include "closeout.h"
+#include "canonicalize.h"
+#include "areadlink.h"
 
 #define PROGRAM_NAME "readlink"
 #define AUTHORS "Dmitry V. Levin"
@@ -72,7 +75,7 @@ int main(int argc, char** argv)
     int can_mode = -1;
 
     /* File name to canonicalize */
-    const char* fname;
+    char* fname;
 
     /* Result of canonicalize */
     char* value;
@@ -136,7 +139,7 @@ int main(int argc, char** argv)
                 : areadlink_with_size(fname, 63));
     if(value)
     {
-        fprintf("%s%s", value, (no_newline ? "" : "\n"));
+        printf("%s%s", value, (no_newline ? "" : "\n"));
         free(value);
         return EXIT_SUCCESS;
     }
