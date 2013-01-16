@@ -92,7 +92,7 @@ char* canonicalize_filename_mode(const char* name, canonicalize_mode_t can_mode)
             *dest++ = '/';
     }
 
-    for(start = name; *start; stand = end)
+    for(start = name; *start; start = end)
     {
         /* Skip sequence of multiple file name separators */
         while(*start == '/')
