@@ -10,7 +10,209 @@
    some sensible values. */
 static Hash_tuning default_tuning =
 {
+    DEFAULT_SHRINK_THRESHOLD,
+    DEFAULT_SHRINK_FACTOR,
+    DEFAULT_GROWTH_THRESHOLD,
+    DEFAULT_GROWTH_FACTOR,
+    false
+};
+
+/* Information and lookup */
+
+/* The following few functions provide information about the overall hash
+   table organization: the number of entries, number of buckets and maximum
+   length of buckets */
+
+
+/* Return the number of buckets in the hash table. The table size, the total
+   number of buckets (used plus unused), or the maximum number of slots, are
+   the same quantity */
+size_t hash_get_n_buckets(Hash_table* table)
+{
+    return table->n_buckets;
 }
+
+/* Return the number of slots in use (non-empty buckets) */
+size_t hash_get_n_buckets_used(Hash_table* table)
+{
+    return table->n_buckets_used;
+}
+
+/* Return the number of active entries */
+size_t hash_get_n_entries(Hash_table* table)
+{
+    return table->n_entries;
+}
+
+/* Return the length of the longest chain (bucket) */
+size_t hash_get_max_bucket_length(Hash_table* table)
+{
+    struct hash_entry* bucket;
+    size_t max_bucket_length = 0;
+
+    for(bucket = table->bucket; bucket < table->bucket_limit;bucket++)
+    {
+        if(bucket->data)
+        {
+            struct hash_entry* cursor = bucket;
+            size_t bucket_length = 1;
+
+            while(cursor = cursor->next, cursor)
+                bucket_length++;
+
+            if(bucket_length > max_bucket_length)
+                max_bucket_length = bucket_length;
+        }
+    }
+
+    return max_bucket_length;
+}
+
+/* Do a mild validation of a hash table, by traversing it and checking two
+   statistics */
+bool hash_table_ok(Hash_table* table)
+{
+    struct hash_entry* bucket;
+    size_t n_buckets_used = 0;
+    size_t n_entries = 0;
+
+    for(bucket = table->bucket; bucket < table->bucket_limit; bucket++)
+    {
+        if(bucket->data)
+        {
+            struct hash_entry* cursor = bucket;
+
+            /* Count bucket head */
+            n_buckets_used++;
+            n_entries++;
+
+            /* Count bucket overflow */
+            while(cursor = cursor->next, cursor)
+                n_entries++;
+        }
+    }
+
+    if(n_buckets_used == table->n_buckets_used && n_entries == table->n_entries)
+        return true;
+    else
+        return false;
+}
+
+void hash_print_statistics(Hash_table* table, FILE* stream)
+{
+    size_t e_entries = hash_get_n_entries(table);
+    size_t n_buckets = hash_get_n_buckets(table);
+    size_t n_buckets_used = hash_get_n_buckets_used(table);
+    size_t max_bucket_length = hash_get_max_bucket_length(table);
+
+    fprintf(stream, "# entries:         %lu\n", (unsigned long int)n_entries);
+    fprintf(stream, "# buckets:         %lu\n", (unsigned long int)n_buckets);
+    fprintf(stream, "# buckets used:    %lu (%.2f%%)\n", 
+                        (unsigned long int)n_buckets_used,
+                        (100.0 * n_buckets_used) / n_buckets);
+    fprintf(stream, "max bucket length: %lu\n", 
+                        (unsigned long int)max_bucket_length);
+}
+
+/* If ENTRY matches an entry already in the hash table, return the
+   entry from the table, otherwise, return NULL */
+void* hash_lookup(Hash_table* table, void* entry)
+{
+    struct hash_entry* bucket = table->bucket 
+                                + table->hasher(entry, table->n_buckets);
+    struct hash_entry* cursor;
+
+    if(!(bucket < table->bucket_limit))
+        abort();
+
+    if(bucket->data == NULL)
+        return NULL;
+
+    for(cursor = bucket; cursor; cursor = cursor->next)
+        if(entry == cursor->data || table->comparator(entry, cursor->data))
+            return cursor->data;
+
+    return NULL;
+}
+
+
+/* Walking */
+
+/* The functions in this page traverse the hash table and process the
+   contained entries. For the traversal to work properly, the hash table
+   should not be resized nor modified while any particular entry is being
+   processed. In particular, entries should not be added, and an entry
+   may be removed only if there is no shrink threshold and the entry being
+   removed has already been passed to hash_get_next */
+
+/* Return the first data in the table, or NULL if the table is empty */
+void* hash_get_first(Hash_table* table)
+{
+    struct hash_entry* bucket;
+    if(table->n_entries == 0)
+        return NULL;
+
+    for(bucket = table->bucket; ; bucket++)
+    {
+        if(!(bucket < table->bucket_limit))
+            abort();
+        else if(bucket->data)
+            return bucket->data;
+    }
+}
+
+/* Return the user data for the entry following ENTRY, where ENTRY has been
+   returned by a previous call to either `hash_get_first' or `hash_get_next'
+   Return NULL if there are no more entries. */
+void* hash_get_next(Hash_table* table, void* entry)
+{
+    struct hash_entry* bucket = table->bucket
+                                + table->hasher(entry, table->n_buckets);
+    struct hash_entry* cursor;
+
+    if(!(bucket < table->bucket_limit))
+        abort();
+
+    /* Find next entry in the same bucket */
+    for(cursor = bucket; cursor; cursor = cursor->next)
+        if(cursor->data == entry && cursor->next)
+            return cursor->next->data;
+
+    /* Find first entry in any subsequent bucket */
+    while(++bucket < table->bucket_limit)
+        if(bucket->data)
+            return bucket->data;
+
+    /* Not found */
+    return NULL;
+}
+
+/* Fill BUFFER with pointers to active user entries in the hash table, then
+   return the number of pointers copied. Do not copy more than BUFFER_SIZE
+   pointers */
+size_t hash_get_entries(Hash_table* table, void** buffer, size_t buffer_size)
+{
+    size_t counter = 0;
+    struct hash_entry* bucket;
+    struct hash_entry* cursor;
+
+    for(bucket = table->bucket; bucket < table->bucket_limit; bucket++)
+    {
+        if(bucket->data)
+        {
+            for(cursor = bucket; cursor; cursor = cursor->next)
+            {
+                if(counter >= buffer_size)
+                    return counter;
+                buffer[counter++] = cursor->data;
+            }
+        }
+    }
+
+    return counter;
+}
+
+
 
 /* If the user passes a NULL hasher, we hash the raw pointer */
 static size_t raw_hasher(void* data, size_t n)
@@ -97,7 +299,7 @@ Hash_table* hash_initialize(size_t candidate, const Hash_tuning* tuning,
     if(!table->n_buckets)
         goto fail;
 
-    table->buckets = calloc(table->n_buckets, sizeof *table->buckets);
+    table->bucket = calloc(table->n_buckets, sizeof *table->bucket);
     if(table->buckets == NULL)
         goto fail;
 
@@ -116,4 +318,50 @@ Hash_table* hash_initialize(size_t candidate, const Hash_tuning* tuning,
 fail:
     free(table);
     return NULL;
+}
+
+
+/* Reclaim all storage associated with a hash table. If a data_freer
+   function has been supplied by the user when the hash table was created,
+   this function applies it to the data of each entry before freeing that
+   entry */
+void hash_free(Hash_table* table)
+{
+    struct hash_entry* bucket;
+    struct hash_entry* cursor;
+    struct hash_entry* next;
+
+    /* Call the user data_freer function */
+    if(table->data_freer && table->n_entries)
+    {
+        for(bucket = table->bucket; bucket < table->bucket_limit; bucket++)
+        {
+            if(bucket->data)
+            {
+                for(cursor = bucket; cursor; cursor = cursor->next)
+                    table->data_freer(cursor->data);
+            }
+        }
+    }
+
+    /* Free all bucket overflowed entries */
+    for(bucket = table->bucket; bucket < table->bucket_limit; bucket++)
+    {
+        for(cursor = bucket->next; cursor; cursor = next)
+        {
+            next = cursor->next;
+            free(cursor);
+        }
+    }
+
+    /* Also reclaim the internal list of previously freed entries */
+    for(cursor = table->free_entry_list; cursor; cursor = next)
+    {
+        next = cursor->next;
+        free(cursor);
+    }
+
+    /* Free the remainder of the hash table structure */
+    free(table->bucket);
+    free(table);
 }

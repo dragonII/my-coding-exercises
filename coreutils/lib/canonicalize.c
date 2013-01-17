@@ -7,6 +7,7 @@
 #include "hash-triple.h"
 #include "file-set.h"
 #include "xgetcwd.h"
+#include "areadlink.h"
 
 #include <errno.h>
 #include <string.h>
@@ -42,7 +43,7 @@ static bool seen_triple(Hash_table** ht, char* filename, struct stat* st)
    does not contain any `.', `..' components nor any repeated file name
    separators ('/') or symlinks. Whether components must exist
    or not depends on canonicalize mode. The result is malloc'd */
-char* canonicalize_filename_mode(const char* name, canonicalize_mode_t can_mode)
+char* canonicalize_filename_mode(char* name, canonicalize_mode_t can_mode)
 {
     char *rname, *dest, *extra_buf = NULL;
     char* start;
