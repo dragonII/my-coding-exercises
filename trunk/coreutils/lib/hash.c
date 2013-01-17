@@ -1,8 +1,16 @@
 /* hash - hashing table processing */
 
 #include "hash.h"
+#include "bitrotate.h"
 
 #include <unistd.h>
+#include <stdlib.h>
+
+/* Use this to initialize or reset a TUNING structure to
+   some sensible values. */
+static Hash_tuning default_tuning =
+{
+}
 
 /* If the user passes a NULL hasher, we hash the raw pointer */
 static size_t raw_hasher(void* data, size_t n)
@@ -14,6 +22,12 @@ static size_t raw_hasher(void* data, size_t n)
        in an attempt to improve hash quality. */
     size_t val = rotr_sz((size_t)data, 3);
     return val % n;
+}
+
+/* If the user passes a NULL comparator, we use pointer comparison. */
+static bool raw_comparator(void* a, void* b)
+{
+    return a == b;
 }
 
 
@@ -61,7 +75,7 @@ Hash_table* hash_initialize(size_t candidate, const Hash_tuning* tuning,
     if(comparator == NULL)
         comparator = raw_comparator;
 
-    table = malloc(sizeof *table)
+    table = malloc(sizeof *table);
     if(table == NULL)
         return NULL;
 
