@@ -6,8 +6,8 @@
 #include <sys/types.h>
 #include <stdbool.h>
 
-typedef size_t (*Hash_hasher) (const void*, size_t);
-typedef bool (*Hash_comparator)(const void*, const void*);
+typedef size_t (*Hash_hasher) (void*, size_t);
+typedef bool (*Hash_comparator)(void*, void*);
 typedef void (*Hash_data_freer)(void*);
 
 struct hash_tuning
@@ -48,6 +48,15 @@ struct hash_table
     /* A linked list of freed struct hash_entry structs */
     struct hash_entry* free_entry_list;
 };
+
+/* A hash table contains many internal entries, each holding a pointer to
+   some user-provided data (also called a user entry). An entry indistinctly
+   refers to both the internal entry and its associated user entry. A user
+   entry contents may be hashed by a randomization function (the hashing
+   function, or just `hash' for short) into a number (or `slot') between 0
+   and the current table size. At each slot position in the hash table,
+   starts a linked chain of entries for which the user data all hash to this
+   slot. A bucket is the collection of all entries hashing to the same slot. */
 
 
 typedef struct hash_table Hash_table;
