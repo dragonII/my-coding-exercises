@@ -49,6 +49,8 @@ struct hash_table
     struct hash_entry* free_entry_list;
 };
 
+typedef struct hash_table Hash_table;
+
 /* A hash table contains many internal entries, each holding a pointer to
    some user-provided data (also called a user entry). An entry indistinctly
    refers to both the internal entry and its associated user entry. A user
@@ -56,14 +58,69 @@ struct hash_table
    function, or just `hash' for short) into a number (or `slot') between 0
    and the current table size. At each slot position in the hash table,
    starts a linked chain of entries for which the user data all hash to this
-   slot. A bucket is the collection of all entries hashing to the same slot. */
+   slot. A bucket is the collection of all entries hashing to the same slot.
+
+   A good `hasher' function will distribute entries rather evenly in buckets.
+   In the ideal case, the length of each bucket is roughly the number of
+   entries divided by the table size. Finding the slot for a data is usually
+   done in constant time by the `hasher', and the later finding of a precise
+   entry is linear in time with the size of the bucket. Consequently, a
+   larger hash table size (this is, a larger number of buckets) is prone to
+   yielding shorter chains, *given* the `hasher' function behaves properly.
+
+   Long buckets slow down the lookup algorithm. One might use big hash table
+   sizes in hope to reduce the average length of buckets, but this might
+   become inordinate, as unused slots in the hash table take some space. The
+   best bet is to make sure you are using a good `hasher' function (beware
+   that those are not that easy to write! :-), and to use a table size
+   larger than the actual number of entries. */
+
+/* If an insertion makes the ratio of nonempty buckets to table size larger
+   than the growth threshold (a number between 0.0 and 1.0), then increase
+   the table size by multiplying by the growth factor (a number greater than
+   1.0). The growth threshold defaults to 0.8, and the growth factor 
+   defaults to 1.414, meaning that the table will have double its size
+   every second time 80% of the buckets get used. */
+#define DEFAULT_GROWTH_THRESHOLD 0.8
+#define DEFAULT_GROWTH_FACTOR   1.414
+
+/* If a deletion empties a bucket and causes the ratio of used buckets to
+   table size to become smaller than the shrink threshold (a number between
+   0.0 and 1.0), then shrink the table by multiplying by the shrink factor
+   (a number greater than the shrink threshold but smaller than 1.0). The
+   shrink threshold and factor default to 0.0 and 1.0, meaning that the table
+   never shrinks */
+#define DEFAULT_SHRINK_THRESHOLD 0.0
+#define DEFAULT_SHRINK_FACTOR 1.0
 
 
-typedef struct hash_table Hash_table;
+/* Information and lookup */
+size_t hash_get_n_buckets(Hash_table*);
+size_t hash_get_n_buckets_used(Hash_table*);
+size_t hash_get_n_entries(Hash_table*);
+size_t hash_get_max_bucket_length(Hash_table*);
+bool   hash_table_ok(Hash_table*);
+void   hash_print_statistics(Hash_table*, FILE*);
+void*  hash_lookup(Hash_table*, void*);
 
+/* Walking */
+void*  hash_get_first(Hash_table*);
+void*  hash_get_next(Hash_table*, void*);
+size_t hash_get_entries(Hash_table*, void**, size_t);
+size_t hash_do_for_each(Hash_table*, Hash_processor, void*);
+
+/* Allocation and clean-up */
+size_t hash_string(char*, size_t);
+void   hash_reset_tuning(Hash_tuning*);
 Hash_table* hash_initialize(size_t candidate, const Hash_tuning* tuning,
                             Hash_hasher hasher, Hash_comparator comparator,
                             Hash_data_freer data_freer);
+void   hash_clear(Hash_table*);
+void   hash_free(Hash_table*);
 
+/* Insertion and deletion */
+bool   hash_rehash(Hash_table*, size_t);
+void*  hash_insert(Hash_table*, void*);
+void*  hash_delete(Hash_table*, void*);
 
 #endif
