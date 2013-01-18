@@ -5,10 +5,18 @@
 
 #include <sys/types.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 typedef size_t (*Hash_hasher) (void*, size_t);
 typedef bool (*Hash_comparator)(void*, void*);
 typedef void (*Hash_data_freer)(void*);
+typedef bool (*Hash_processor) (void*, void*);
+
+struct hash_entry
+{
+    void* data;
+    struct hash_entry* next;
+};
 
 struct hash_tuning
 {
@@ -34,7 +42,7 @@ struct hash_table
     size_t n_entries;
 
     /* Tuning arguments, kept in a physically separate structure */
-    const Hash_tuning* tuning;
+    Hash_tuning* tuning;
 
     /* These functions are given to `hash_initialize'.
        In a word, HASHER randomizes a user entry into a number
@@ -112,7 +120,7 @@ size_t hash_do_for_each(Hash_table*, Hash_processor, void*);
 /* Allocation and clean-up */
 size_t hash_string(char*, size_t);
 void   hash_reset_tuning(Hash_tuning*);
-Hash_table* hash_initialize(size_t candidate, const Hash_tuning* tuning,
+Hash_table* hash_initialize(size_t candidate, Hash_tuning* tuning,
                             Hash_hasher hasher, Hash_comparator comparator,
                             Hash_data_freer data_freer);
 void   hash_clear(Hash_table*);

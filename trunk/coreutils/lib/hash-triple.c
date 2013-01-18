@@ -2,8 +2,11 @@
 
 #include <sys/types.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "hash-triple.h"
+#include "hash-pjw.h"
+#include "same-inode.h"
 
 #define STREQ(a, b) (strcmp ((a), (b)) == 0)
 
