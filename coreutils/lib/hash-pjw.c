@@ -1,6 +1,7 @@
 /* hash-pjw.c -- compute a hash value from a NUL-terminated string. */
 
 #include <limits.h>
+#include <sys/types.h>
 
 #define SIZE_BITS (sizeof(size_t) * CHAR_BIT)
 

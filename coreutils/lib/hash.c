@@ -2,6 +2,7 @@
 
 #include "hash.h"
 #include "bitrotate.h"
+#include "xalloc.h"
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -50,7 +51,7 @@ size_t hash_get_max_bucket_length(Hash_table* table)
     struct hash_entry* bucket;
     size_t max_bucket_length = 0;
 
-    for(bucket = table->bucket; bucket < table->bucket_limit;bucket++)
+    for(bucket = table->bucket; bucket < table->bucket_limit; bucket++)
     {
         if(bucket->data)
         {
@@ -100,7 +101,7 @@ bool hash_table_ok(Hash_table* table)
 
 void hash_print_statistics(Hash_table* table, FILE* stream)
 {
-    size_t e_entries = hash_get_n_entries(table);
+    size_t n_entries = hash_get_n_entries(table);
     size_t n_buckets = hash_get_n_buckets(table);
     size_t n_buckets_used = hash_get_n_buckets_used(table);
     size_t max_bucket_length = hash_get_max_bucket_length(table);
@@ -219,7 +220,7 @@ size_t hash_get_entries(Hash_table* table, void** buffer, size_t buffer_size)
    the user entry being walked into, the second is the vale of PROCESSOR_DATA
    as received. The walking continue for as long as the PROCESSOR function
    returns nonzero. When it returns zero, the walking is interrupted. */
-size_t hash_do_for_each(Hash_table* table, Hash_processor prcessor,
+size_t hash_do_for_each(Hash_table* table, Hash_processor processor,
                         void* processor_data)
 {
     size_t counter = 0;
@@ -250,7 +251,7 @@ size_t hash_string(char* string, size_t n_buckets)
     size_t value = 0;
     unsigned char ch;
 
-    for(; ch = *string; string++)
+    for(; (ch = *string); string++)
         value = (value * 31 + ch) % n_buckets;
     return value;
 }
@@ -397,7 +398,7 @@ static size_t compute_bucket_size(size_t candidate, Hash_tuning* tuning)
    all of your `data' data. This is typically the case when your data is
    simply an auxilary struct that you have malloc'd to aggregate several
    values. */
-Hash_table* hash_initialize(size_t candidate, const Hash_tuning* tuning,
+Hash_table* hash_initialize(size_t candidate, Hash_tuning* tuning,
                             Hash_hasher hasher, Hash_comparator comparator,
                             Hash_data_freer data_freer)
 {
@@ -431,10 +432,10 @@ Hash_table* hash_initialize(size_t candidate, const Hash_tuning* tuning,
         goto fail;
 
     table->bucket = calloc(table->n_buckets, sizeof *table->bucket);
-    if(table->buckets == NULL)
+    if(table->bucket == NULL)
         goto fail;
 
-    table->bucket_limit = table->buckets + table->n_buckets;
+    table->bucket_limit = table->bucket + table->n_buckets;
     table->n_buckets_used = 0;
     table->n_entries = 0;
 
@@ -642,5 +643,289 @@ static void* hash_find_entry(Hash_table* table, void* entry,
    allocation fails */
 static bool transfer_entries(Hash_table* dst, Hash_table* src, bool safe)
 {
+    struct hash_entry* bucket;
+    struct hash_entry* cursor;
+    struct hash_entry* next;
+    for(bucket = src->bucket; bucket < src->bucket_limit; bucket++)
+    {
+        void* data;
+        struct hash_entry* new_bucket;
 
+        /* Within each bucket, transfer overflow entries first and
+           then the bucket head, to minimize memory pressure. After
+           all, the only time we might allocate is when moving the
+           bucket head, but moving overflow entries first may create
+           free entries that can be recycled by the time we finally
+           get to the bucket head. */
+        for(cursor = bucket->next; cursor; cursor = next)
+        {
+            data = cursor->data;
+            new_bucket = (dst->bucket + dst->hasher(data, dst->n_buckets));
+
+            if(!(new_bucket < dst->bucket_limit))
+                abort();
+
+            next = cursor->next;
+
+            if(new_bucket->data)
+            {
+                /* Merely relink an existing entry, when moving from a
+                   bucket overflow into a bucket overflow */
+                cursor->next = new_bucket->next;
+                new_bucket->next = cursor;
+            }
+            else
+            {
+                /* Free an existing entry, when moving from a bucket
+                   overflow into a bucket header */
+                new_bucket->data = data;
+                dst->n_buckets_used++;
+                free_entry(dst, cursor);
+            }
+        }
+
+        /* Now move the bucket head. Be sure that if we fail due to 
+           allocation failure that the src table is in a consistant
+           state. */
+        data = bucket->data;
+        bucket->next = NULL;
+        if(safe)
+            continue;
+        new_bucket = (dst->bucket + dst->hasher(data, dst->n_buckets));
+
+        if(!(new_bucket < dst->bucket_limit))
+            abort();
+
+        if(new_bucket->data)
+        {
+            /* Allocate or recycle an entry, when moving from a bucket
+               header into a bucket overflow */
+            struct hash_entry* new_entry = allocate_entry(dst);
+
+            if(new_entry == NULL)
+                return false;
+
+            new_entry->data = data;
+            new_entry->next = new_bucket->next;
+            new_bucket->next = new_entry;
+        }
+        else
+        {
+            /* Move from one bucket header to another */
+            new_bucket->data = data;
+            dst->n_buckets_used++;
+        }
+        bucket->data = NULL;
+        src->n_buckets_used--;
+    }
+    return true;
+}
+
+/* For an already existing hash table, change the number of buckets through
+   specifying CANDIDATE. The contents of the hash table are preserved. The
+   new number of buckets is automatically selected so as to _guarantee_ that
+   the table may receive at least CANDIDATE different user entries, including
+   those already in the table, before any other growth of the hash table size
+   occurs. If TUNING->IS_N_BUCKETS is true, then CANDIDATE specifies the
+   exact number of buckets desired. Return true if the rehash succeeded. */
+bool hash_rehash(Hash_table* table, size_t candidate)
+{
+    Hash_table storage;
+    Hash_table* new_table;
+    size_t new_size = compute_bucket_size(candidate, table->tuning);
+
+    if(!new_size)
+        return false;
+    if(!new_size == table->n_buckets)
+        return true;
+    new_table = &storage;
+    new_table->bucket = calloc(new_size, sizeof *new_table->bucket);
+    if(new_table->bucket == NULL)
+        return false;
+    new_table->n_buckets = new_size;
+    new_table->bucket_limit = new_table->bucket + new_size;
+    new_table->n_buckets_used = 0;
+    new_table->n_entries = 0;
+    new_table->tuning = table->tuning;
+    new_table->hasher = table->hasher;
+    new_table->comparator = table->comparator;
+    new_table->data_freer = table->data_freer;
+
+    /* In order for the transfer to successfully complete, we need
+       additional overflow entries when distinct buckets in the old
+       table collide into a common bucket in the new table. The worst
+       case possible is a hasher that gives a good spread with the old
+       size, but returns a constant with the new size; if we were to
+       guarantee table->n_buckets_used-1 free entries in advance, then
+       the transfer would be guaranteed to not allocate memory.
+       However, for large tables, a guarantee of no further allocation
+       introduces a lot of extra memory pressure, all for an unlikely
+       corner case (most rehashes reduce, rather than increase, the
+       number of overflow entries needed). So, we instead ensure that
+       the transfer process can be reversed if we hit a memory
+       allocation failure mid-transfer */
+    new_table->free_entry_list = table->free_entry_list;
+
+    if(transfer_entries(new_table, table, false))
+    {
+        /* Entries transferred successfully; tie up the loose ends */
+        free(table->bucket);
+        table->bucket = new_table->bucket;
+        table->bucket_limit = new_table->bucket_limit;
+        table->n_buckets = new_table->n_buckets;
+        table->n_buckets_used = new_table->n_buckets_used;
+        table->free_entry_list = new_table->free_entry_list;
+        /* table->n_entries already hold their value */
+        return true;
+    }
+
+    /* We've allocated new_table->bucket (and possibly some entries),
+       exhausted the free list, and moved some but not all entries into
+       new_table. We must undo the partial move before returning
+       failure. The only way to get into this situation is if new_table
+       uses fewer buckets than the old table, so we will reclaim some
+       free entries as overflows in the new table are put back into
+       distinct buckets in the old table.
+
+       There are some pathological cases where a single pass through the
+       table requires more intermidiate overflow entries than using two
+       passes. Two passes give worse cache performance and takes
+       longer, but at this point, we're already out of memory, so slow
+       and safe is better than failure. */
+    table->free_entry_list = new_table->free_entry_list;
+    if(!(transfer_entries(table, new_table, true)
+            && transfer_entries(table, new_table, false)))
+        abort();
+    /* table->n_entries already holds its value */
+    free(new_table->bucket);
+    return false;
+}
+
+/* If ENTRY matches an entry already in the hash table, return the pointer
+   to the entry from the table. Otherwise, insert ENTRY and return ENTRY.
+   Return NULL if the storage required for insertion cannot be allocated.
+   This is implemention does not support duplicate entries or insertion of
+   NULL */
+void* hash_insert(Hash_table* table, void* entry)
+{
+    void* data;
+    struct hash_entry* bucket;
+
+    /* The caller cannot insert a NULL entry */
+    if(!entry)
+        abort();
+
+    /* If there's a matching entry already in the table, return that */
+    if((data = hash_find_entry(table, entry, &bucket, false)) != NULL)
+        return data;
+
+    /* If the growth threshold of the buckets in use has been reached, increase
+       the table size and rehash. There's no point in checking the number of 
+       entries: if the hashing funciton is ill-conditioned, rehashing is not
+       likely to improve it */
+    if(table->n_buckets_used
+            > table->tuning->growth_threshold * table->n_buckets)
+    {
+        /* Check more fully, before starting real work. If tuning arguments
+           became invalid, the second check will rely on proper defaults */
+        check_tuning(table);
+        if(table->n_buckets_used
+            > table->tuning->growth_threshold * table->n_buckets)
+        {
+            Hash_tuning* tuning = table->tuning;
+            float candidate = 
+                (tuning->is_n_buckets
+                    ? (table->n_buckets * tuning->growth_factor)
+                    : (table->n_buckets * tuning->growth_factor * tuning->growth_threshold));
+            if(SIZE_MAX <= candidate)
+                return NULL;
+
+            /* If the rehash fails, arrange to return NULL */
+            if(!hash_rehash(table, candidate))
+                return NULL;
+
+            /* Update the bucket we are interested in */
+            if(hash_find_entry(table, entry, &bucket, false) != NULL)
+                abort();
+        }
+    }
+
+    /* ENTRY is not matched, it should be inserted */
+    if(bucket->data)
+    {
+        struct hash_entry* new_entry = allocate_entry(table);
+        if(new_entry == NULL)
+            return NULL;
+
+        /* Add ENTRY in the overflowed of the bucket */
+        new_entry->data = (void*)entry;
+        new_entry->next = bucket->next;
+        bucket->next = new_entry;
+        table->n_entries++;
+        return (void*)entry;
+    }
+
+    /* Add ENTRY right in the bucket head */
+    bucket->data = (void*)entry;
+    table->n_entries++;
+    table->n_buckets_used++;
+
+    return (void*)entry;
+}
+
+/* If ENTRY is already in the table, remove it and return the just-deleted
+   data (the user may want to deallocate its storage). If ENTRY is not in the
+   table, don't modify the table and return NULL */
+void* hash_delete(Hash_table* table, void* entry)
+{
+    void* data;
+    struct hash_entry* bucket;
+
+    data = hash_find_entry(table, entry, &bucket, true);
+    if(!data)
+        return NULL;
+
+    table->n_entries--;
+    if(!bucket->data)
+    {
+        table->n_buckets_used--;
+
+        /* If the shrink threshold of the buckets in use has been reached,
+           rehash into a smaller table */
+        if(table->n_buckets_used
+                < table->tuning->shrink_threshold * table->n_buckets)
+        {
+            /* Check more fully, before starting real work. If tuning arguments
+               became invalid, the second check will rely on proper defaults. */
+               check_tuning(table);
+               if(table->n_buckets_used
+                    < table->tuning->shrink_threshold * table->n_buckets)
+               {
+                   Hash_tuning* tuning = table->tuning;
+                   size_t candidate =
+                            (tuning->is_n_buckets
+                                ? table->n_buckets * tuning->shrink_factor
+                                : (table->n_buckets * tuning->shrink_factor
+                                        * tuning->growth_threshold));
+                   if(!hash_rehash(table, candidate))
+                   {
+                       /* Failure to allocate memory in an attempt to
+                          shrink the table is not fatal. But since memory
+                          is low, we can at least be kind and free any
+                          spare entries, rather than keeping them tied up
+                          in the free entry list */
+                       struct hash_entry* cursor = table->free_entry_list;
+                       struct hash_entry* next;
+                       while(cursor)
+                       {
+                           next = cursor->next;
+                           free(cursor);
+                           cursor = next;
+                       }
+                       table->free_entry_list = NULL;
+                   }
+               }
+        }
+    }
+    return data;
 }
