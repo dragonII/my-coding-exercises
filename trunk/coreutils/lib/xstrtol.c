@@ -13,9 +13,35 @@
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <assert.h>
+#include <stdlib.h>
 
 #include "intprops.h"
 #include "xstrtol.h"
+
+static strtol_error bkm_scale(__strtol_t* x, int scale_factor)
+{
+    if(TYPE_SIGNED(__strtol_t) && *x < STRTOL_T_MINIMUM / scale_factor)
+    {
+        *x = STRTOL_T_MINIMUM;
+        return LONGINT_OVERFLOW;
+    }
+    if(STRTOL_T_MAXIMUM / scale_factor < *x)
+    {
+        *x = STRTOL_T_MAXIMUM;
+        return LONGINT_OVERFLOW;
+    }
+    *x *= scale_factor;
+    return LONGINT_OK;
+}
+
+static strtol_error bkm_scale_by_power(__strtol_t* x, int base, int power)
+{
+    strtol_error err = LONGINT_OK;
+    while(power--)
+        err |= bkm_scale(x, base);
+    return err;
+}
 
 strtol_error __xstrtol(char*s, char** ptr, int strtol_base,
                         __strtol_t* val, char* valid_suffixes)
@@ -84,3 +110,69 @@ strtol_error __xstrtol(char*s, char** ptr, int strtol_base,
                of 1000, whereas a suffix "iB" (e.g. "100MiB") stands for
                a power of 1024. If no suffix (e.g. "100M"), assume
                power-of-1024 */
+            switch(p[0][1])
+            {
+                case 'i':
+                    if(p[0][2] == 'B')
+                        suffixes += 2;
+                    break;
+                case 'B':
+                case 'D':   /* 'D' is obsolescent */
+                    base = 1000;
+                    suffixes++;
+                    break;
+            }
+        }
+        switch(**p)
+        {
+            case 'b':
+                overflow = bkm_scale(&tmp, 512);
+                break;
+            case 'B':
+                overflow = bkm_scale(&tmp, 1024);
+                break;
+            case 'c':
+                overflow = 0;
+                break;
+            case 'E':   /* exa or exbi */
+                overflow = bkm_scale_by_power(&tmp, base, 6);
+                break;
+            case 'G':   /* giga or gibi */
+            case 'g':   /* 'g' is undocumented, for compatibility only */
+                overflow = bkm_scale_by_power(&tmp, base, 3);
+                break;
+            case 'k':
+            case 'K':
+                overflow = bkm_scale_by_power(&tmp, base, 1);
+            case 'M':
+            case 'm':
+                overflow = bkm_scale_by_power(&tmp, base, 2);
+                break;
+            case 'P':   /* peta or pebi */
+                overflow = bkm_scale_by_power(&tmp, base, 5);
+                break;
+            case 'T':   /* tera or tebi */
+            case 't':
+                overflow = bkm_scale_by_power(&tmp, base, 4);
+                break;
+            case 'w':
+                overflow = bkm_scale(&tmp, 2);
+                break;
+            case 'Y':   /* yotta or 2**80 */
+                overflow = bkm_scale_by_power(&tmp, base, 8);
+                break;
+            case 'Z':   /* zetta or 2**70 */
+                overflow = bkm_scale_by_power(&tmp, base, 7);
+                break;
+            default:
+                *val = tmp;
+                return err | LONGINT_INVALID_SUFFIX_CHAR;
+        }
+        err |= overflow;
+        *p += suffixes;
+        if(**p)
+            err |= LONGINT_INVALID_SUFFIX_CHAR;
+    }
+    *val = tmp;
+    return err;
+}

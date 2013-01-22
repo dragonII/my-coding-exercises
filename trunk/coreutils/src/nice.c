@@ -82,7 +82,7 @@ int main(int argc, char** argv)
 
     for(i = 1; i < argc; /* empty */)
     {
-        char*s = argv[i];
+        char* s = argv[i];
 
         if(s[0] == '-' && ISDIGIT(s[1 + (s[1] == '-' || s[1] == '+')]))
         {
@@ -101,7 +101,7 @@ int main(int argc, char** argv)
             /* Initialize getopt_long's internal state */
             optind = 0;
 
-            optc = getopt_long(fake_argc, fake_argv, "+n", longopts, NULL);
+            optc = getopt_long(fake_argc, fake_argv, "+n:", longopts, NULL);
             i += optind - 1;
 
             if(optc == '?')
@@ -126,7 +126,7 @@ int main(int argc, char** argv)
         adjustment = MAX(MIN_ADJUSTMENT, MIN(tmp, MAX_ADJUSTMENT));
     }
 
-    if(argc == 1)
+    if(argc == i)
     {
         if(adjustment_given)
         {
