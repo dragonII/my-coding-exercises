@@ -7,11 +7,13 @@
 #include <sys/resource.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 #include "long-options.h"
 #include "xstrtol.h"
 #include "system.h"
 #include "closeout.h"
+#include "quote.h"
 
 
 #define PROGRAM_NAME "nice"
@@ -82,7 +84,7 @@ int main(int argc, char** argv)
     {
         char*s = argv[i];
 
-        if(s[0] == '-' && ISDIDIT(s[1 + (s[1] == '-' || s[1] == '+')]))
+        if(s[0] == '-' && ISDIGIT(s[1 + (s[1] == '-' || s[1] == '+')]))
         {
             adjustment_given = s + 1;
             ++i;
