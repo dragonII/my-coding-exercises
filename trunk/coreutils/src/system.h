@@ -13,6 +13,15 @@
 #include "config.h"
 #include "version-etc.h"
 
+/* ISDIGIT differs from isdigit, as follows:
+    - Its arg may be any int or unsigned int; it need not be an unsigned char
+      or EOF.
+    - It's typically faster.
+   POSIX says that only '0' through '9' are digits. Prefer ISDIGIT to
+   isdigit unless it's important to use the locale's definition
+   of `digit' even when the host does not conform to POSIX */
+#define ISDIGIT(c) ((unsigned int) (c) - '0' <= 9)
+
 /* Take care of NLS matters. (Native Language String?)*/
 
 #include "gettext.h"
@@ -134,6 +143,14 @@ enum
                     (char*)NULL); \
         exit(EXIT_SUCCESS);         \
         break;
+
+#ifndef MAX
+# define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
+#ifndef MIN
+# define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
 /* Program_name must be a literal string.
    Usually it is just PROGRAM_NAME. */
