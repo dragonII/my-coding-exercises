@@ -87,4 +87,84 @@ bool make_dir_parents(char* dir,
                users cannot nip in before the directory is ready */
             bool keep_owner = owner == (uid_t) -1 && group == (gid_t) -1;
             bool keep_special_mode_bits = 
-                    ((mode_bits & (S_ISUID | S_ISGID))
+                    ((mode_bits & (S_ISUID | S_ISGID)) | (mode & S_ISVTX)) == 0;
+            mode_t mkdir_mode = mode;
+            if(!keep_owner)
+                mkdir_mode &= ~(S_IRWXG | S_IRWXO);
+            else if(! keep_special_mode_bits)
+                mkdir_mode &= ~(S_IWGRP | S_IWOTH);
+
+            if(mkdir(dir + prefix_len, mkdir_mode) == 0)
+            {
+                announce(dir, options);
+                preserve_existing = keep_owner & keep_special_mode_bits;
+                savewd_chdir_options |=
+                        (SAVEWD_CHDIR_NOFOLLOW
+                            | (mode & S_IRUSR ? SAVEWD_CHDIR_READABLE : 0));
+            }
+            else
+            {
+                mkdir_errno = errno;
+                mkdir_mode = -1;
+            }
+
+            if(preserve_existing)
+            {
+                struct stat st;
+                if(mkdir_errno == 0
+                    || (mkdir_errno != ENOENT && make_ancestor
+                        && stat(dir + prefix_len, &st) == 0
+                        && S_ISDIR(st.st_mode)))
+                    return true;
+            }
+            else
+            {
+                int open_result[2];
+                int chdir_result = 
+                    savewd_chdir(wd, dir + prefix_len,
+                                 savewd_chdir_options, open_result);
+                if(chdir_result < -1)
+                    return true;
+                else
+                {
+                    bool chdir_ok = (chdir_result == 0);
+                    int chdir_errno = errno;
+                    bool chdir_failed_unexpectedly =
+                        (mkdir_errno == 0
+                         && ((!chdir_ok && (mode & S_IXUSR))
+                             || (fd < 0 && (mode & S_IRUSR))));
+
+                    if(chdir_failed_unexpectedly)
+                    {
+                        /* No need to save errno here; it's irrelevant */
+                        if(fd >= 0)
+                            close(fd);
+                    }
+                    else
+                    {
+                        char* subdir = (chdir_ok ? "." : dir + prefix_len);
+                        if(dirchownmod(fd, subdir, mkdir_mode, owner, group,
+                                        mode, mode_bits) == 0)
+                            return true;
+                    }
+                    if(mkdir_errno == 0
+                        || (mkdir_errno != ENOENT && make_ancestor
+                            && errno != ENOTDIR))
+                    {
+                        error(0,
+                              (! chdir_failed_unexpectedly ? errno
+                               : ! chdir_ok && (mode & S_IXUSR) ? chdir_errno
+                               : open_result[1]),
+                               _(keep_owner
+                                 ? "cannot change permissions of %s"
+                                 : "cannot change owner and permissions of %s"),
+                                 quote(dir));
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    error(0, mkdir_errno, _("cannot create directory %s"), quote(dir));
+    return false;
+}
