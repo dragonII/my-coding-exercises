@@ -16,6 +16,8 @@
 #include "xstrtol.h"
 #include "closeout.h"
 #include "intprops.h"
+#include "config.h"
+#include "mgetgroups.h"
 
 #define PROGRAM_NAME "setuidgid"
 #define AUTHORS "Jim Meyering"
@@ -97,7 +99,7 @@ int main(int argc, char** argv)
                             break;
                         if(*ptr != ',')
                         {
-                            error(0, 0, _("invalid group %s", quote(gr)));
+                            error(0, 0, _("invalid group %s"), quote(gr));
                             usage(SETUIDGID_FAILURE);
                         }
                         gr = ptr + 1;
