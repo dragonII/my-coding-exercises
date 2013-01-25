@@ -4,9 +4,14 @@
 #include <stdbool.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <stddef.h>
 
 #include "savewd.h"
 #include "dirname.h"
+
+#ifndef HAVE_FCHMOD
+# define HAVE_FCHMOD false
+#endif
 
 /* Ensure that the directory DIR exist.
 
