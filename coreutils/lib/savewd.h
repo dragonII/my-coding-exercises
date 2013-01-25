@@ -49,5 +49,27 @@ struct savewd
     } val;
 };
 
+/* Options for savewd_chdir */
+enum
+{
+    /* Do not follow symbolic links, if supported */
+    SAVEWD_CHDIR_NOFOLLOW = 1,
+
+    /* The directory should be readable, so fail if it happens to be
+       discovered that the directory is not readable. (Unreadable
+       directories are not necessarily diagnosed, though). */
+    SAVEWD_CHDIR_READABLE = 2,
+
+    /* Do not chdir if the directory is readable; simply succeed
+       without invoking chdir if the directory was opened. */
+    SAVEWD_CHDIR_SKIP_READABLE = 4
+};
+
+/* Return WD's error number, or 0 if WD is not in an error state */
+static inline int savewd_errno(struct savewd* wd)
+{
+    return (wd->state == ERROR_STATE ? wd->val.errnum : 0);
+}
+
 
 #endif
