@@ -20,5 +20,8 @@
    type mode_t */
 #define PROMOTED_MODE_T mode_t
 
+/* Define to 1 if you have the `lchmod' function */
+/* #undef HAVE_LCHMOD */
+
 
 #endif
