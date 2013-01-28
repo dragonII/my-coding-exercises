@@ -13,5 +13,12 @@
    this is either `int' or  `gid_t'; */
 #define GETGROUPS_T gid_t
 
+/* Define to 1 if O_NOFOLLOW works */
+#define HAVE_WORKING_O_NOFOLLOW 1
+
+/* Define to the type that is the result of default argument promotions of
+   type mode_t */
+#define PROMOTED_MODE_T mode_t
+
 
 #endif

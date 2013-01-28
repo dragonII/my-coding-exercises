@@ -5,9 +5,17 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stddef.h>
+#include <errno.h>
+#include <error.h>
+#include <unistd.h>
+#include <linux/stat.h>
 
 #include "savewd.h"
 #include "dirname.h"
+#include "mkancesdirs.h"
+#include "quote.h"
+#include "../src/system.h"
+#include "dirchownmod.h"
 
 #ifndef HAVE_FCHMOD
 # define HAVE_FCHMOD false
@@ -134,6 +142,7 @@ bool make_dir_parents(char* dir,
                 {
                     bool chdir_ok = (chdir_result == 0);
                     int chdir_errno = errno;
+                    int fd = open_result[0];
                     bool chdir_failed_unexpectedly =
                         (mkdir_errno == 0
                          && ((!chdir_ok && (mode & S_IXUSR))

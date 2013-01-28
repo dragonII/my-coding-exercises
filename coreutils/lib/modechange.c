@@ -15,6 +15,7 @@
 #include "xalloc.h"
 #include "stat-macros.h"
 #include "modechange.h"
+#include "sys_stat.in.h"
 
 ///* The traditional octal values corresponding to each mode bit. */
 //#define SUID 04000

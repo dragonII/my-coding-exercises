@@ -4,13 +4,13 @@
 #include <sys/types.h>
 #include <stdio.h>
 
-#include "system.h"
+#include "../src/system.h"
 #include "prog-fprintf.h"
 #include "progname.h"
 
 /* Display program name followed by variable list.
    Used for e.g. verbose output */
-void prog_fprintf(FILE* fp, char* fmt, ...)
+void prog_fprintf(FILE* fp, const char* fmt, ...)
 {
     va_list ap;
     fputs(program_name, fp);

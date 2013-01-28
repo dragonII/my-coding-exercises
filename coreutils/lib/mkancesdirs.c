@@ -4,7 +4,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fnctl.h>
+#include <fcntl.h>
 
 #include <stddef.h>
 #include <errno.h>
