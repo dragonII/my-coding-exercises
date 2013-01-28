@@ -1,6 +1,6 @@
 #ifndef _VERSION_H
 #define _VERSION_H
 
-char *Version = "x.x";
+extern char *Version;
 
 #endif
