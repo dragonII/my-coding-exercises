@@ -15,6 +15,7 @@
 #include "version.h"
 #include "closeout.h"
 #include "modechange.h"
+#include "sys_stat.in.h"
 
 #define PROGRAM_NAME "mkfifo"
 #define AUTHORS "David MacKenzie"

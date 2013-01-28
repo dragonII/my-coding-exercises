@@ -19,10 +19,6 @@
 #define XOTH 00001
 #define ALLM 07777  /* all octal mode bits */
 
-#undef S_IRWXUGO
-#define S_IRWXUGO (S_IRWXU | S_IRWXG | S_IRWXO)
-
-
 struct mode_change* mode_compile(char* mode_string);
 mode_t mode_adjust(mode_t oldmode, bool dir, mode_t umask_value,
                     struct mode_change* changes, mode_t* pmode_bits);

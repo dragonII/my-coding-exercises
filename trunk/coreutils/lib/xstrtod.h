@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 
-bool xstrtod(const char* str, const char** ptr, double* result,
-                double (*convert)(const char*, char**));
+bool xstrtod(char* str, const char** ptr, double* result,
+                double (*convert)(char*, char**));
 
 #endif

@@ -15,8 +15,8 @@
    conversion put the result in *RESULT and return true. Return
    false and don't modify *RESULT upon any failure. CONVERT
    specifies the conversion function, e.g., strtod itself. */
-bool XSTRTOD(const char* str, const char** ptr, DOUBLE* result,
-                DOUBLE (*convert)(const char*, char**))
+bool XSTRTOD(char* str, const char** ptr, DOUBLE* result,
+                DOUBLE (*convert)(char*, char**))
 {
     DOUBLE val;
     char* terminator;

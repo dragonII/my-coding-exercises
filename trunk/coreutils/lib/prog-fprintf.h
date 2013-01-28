@@ -5,6 +5,6 @@
 
 #include <stdio.h>
 
-void prog_fprintf(FILE* fp, char* fmt, ...);
+void prog_fprintf(FILE* fp, const char* fmt, ...);
 
 #endif

@@ -72,4 +72,12 @@ static inline int savewd_errno(struct savewd* wd)
 }
 
 
+int savewd_chdir(struct savewd* wd, char* dir, int options,
+                    int open_result[2]);
+
+int savewd_process_files(int n_files, char** file,
+                         int (*act)(char*, struct savewd*, void*),
+                         void* options);
+int savewd_restore(struct savewd* wd, int status);
+
 #endif

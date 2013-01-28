@@ -10,12 +10,13 @@
 #include <selinux/selinux.h>
 
 #include "system.h"
-//#include "mkdir-p.h"
+#include "mkdir-p.h"
 #include "modechange.h"
 #include "prog-fprintf.h"
 #include "quote.h"
 #include "savewd.h"
 #include "closeout.h"
+#include "sys_stat.in.h"
 
 #define PROGRAM_NAME "mkdir"
 #define AUTHORS "David MacKenzie"
@@ -77,7 +78,7 @@ struct mkdir_options
     mode_t mode_bits;
 
     /* If not null, format to use when reporting newly made directories */
-    char* create_directory_format;
+    const char* create_directory_format;
 };
 
 /* Report that directory DIR was made, if OPTIONS requests this. */
