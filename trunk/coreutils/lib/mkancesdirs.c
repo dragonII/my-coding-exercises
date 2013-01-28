@@ -105,7 +105,11 @@ ptrdiff_t mkancesdirs(char* file, struct savewd* wd,
                             break;
                     }
                 if(made_dir)
-                    savewd_chdir(wd, component, savewd_chdir_options, NULL);
+                    savewd_chdir_options |= SAVEWD_CHDIR_NOFOLLOW;
+
+                chdir_result =
+                        savewd_chdir(wd, component, savewd_chdir_options, NULL);
+
 
                 /* Undo the temporary modification to FILE, unless there
                    was a failure. */
