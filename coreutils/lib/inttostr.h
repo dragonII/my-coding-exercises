@@ -8,6 +8,10 @@
 
 #include "intprops.h"
 
+#define inttostr umaxtostr
+#define inttype uintmax_t
+#define inttype_is_signed 0
+
 char* offtostr(off_t, char*);
 char* imaxtostr(intmax_t, char*);
 char* umaxtostr(uintmax_t, char*);

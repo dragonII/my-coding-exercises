@@ -19,6 +19,7 @@
 #include "intprops.h"
 #include "xalloc.h"
 #include "xstrtol.h"
+#include "inttostr.h"
 
 #include "gettext.h"
 #define _(msgid) gettext(msgid)
@@ -159,7 +160,7 @@ parse_with_separator(char* spec, char* separator,
 
     free(u);
 
-    return _(error_msg);
+    return (char*)_(error_msg);
 }
 
 
