@@ -11,5 +11,9 @@
         (struct { unsigned int verify_error_if_negative_size__: (R) ? 1 : -1; } ))
 
 
+/* Verify requirement R at compile-time, as a declaration without a 
+   tailing ';'. */
+#define verify(R) extern int (* verify_function__ (void)) [verify_true (R)]
+
 
 #endif
