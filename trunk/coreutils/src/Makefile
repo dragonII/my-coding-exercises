@@ -7,7 +7,7 @@ BIN_DIR=../bin
 
 CC=cc
 RM=rm
-CFLAGS=-Wall -c -g
+CFLAGS=-Wall -c -g -D_GNU_SOURCE
 LDFLAGS=-g
 INFLAGS=-I../lib
 
@@ -79,6 +79,8 @@ mkdir: mkdir.c
 chroot: chroot.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 sum: sum.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
+rmdir: rmdir.c
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $(OBJ_DIR)/$(addsuffix .o,$@)
 
 

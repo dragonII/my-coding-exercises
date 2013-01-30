@@ -1,11 +1,21 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 
 #include <stdio.h>
 #include <stdint.h>
 #include <limits.h>
 #include <string.h>
+#include <stdbool.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+#include <dirent.h>
 
 #include <locale.h>
 
@@ -191,5 +201,61 @@ enum
 #define X2REALLOC(P, PN) ((void) verify_true (sizeof *(P) == 1), \
                             x2realloc(P, PN))
 
+#include <dirent.h>
+#include "dirname.h"
+
+static inline bool
+dot_or_dotdot(char* filename)
+{
+    if(filename[0] == '.')
+    {
+        char sep = filename[(filename[1] == '.') + 1];
+        return (! sep || ISSLASH(sep));
+    }
+    else
+        return false;
+}
+
+/* A wrapper for readdir so that callers don't see entries for `.' or `..' */
+static inline struct dirent*
+readdir_ignoring_dot_and_dotdot(DIR* dirp)
+{
+    while(1)
+    {
+        struct dirent* dp = readdir(dirp);
+        if(dp == NULL || !dot_or_dotdot(dp->d_name))
+            return dp;
+    }
+}
+
+/* Return true if DIR is determined to be an empty directory */
+static inline bool
+is_empty_dir(int fd_cwd, char* dir)
+{
+    DIR* dirp;
+    struct dirent* dp;
+    int saved_errno;
+    int fd = openat(fd_cwd, dir,
+                    (O_RDONLY | O_DIRECTORY
+                     | O_NOCTTY | O_NOFOLLOW | O_NONBLOCK));
+
+    if(fd < 0)
+        return false;
+
+    dirp = fdopendir(fd);
+    if(dirp == NULL)
+    {
+        close(fd);
+        return false;
+    }
+
+    errno = 0;
+    dp = readdir_ignoring_dot_and_dotdot(dirp);
+    saved_errno = errno;
+    closedir(dirp);
+    if(dp != NULL)
+        return false;
+    return saved_errno == 0 ? true : false;
+}
 
 #endif // __CONFIG_H
