@@ -8,8 +8,8 @@
    system-supplied declaration */
 # undef lchmod
 # define lchmod lchmod_rpl
-static int
-lchmod(char const* f, mode_t m)
+int
+lchmod(char* f, mode_t m)
 {
     errno = ENOSYS;
     return -1;
