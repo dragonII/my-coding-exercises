@@ -15,7 +15,6 @@
 #include <sys/types.h>
 #include <getopt.h>
 #include <stdlib.h>
-#define __USE_GNU
 #include <unistd.h>   /* extern char** environ */
 
 #include "system.h"

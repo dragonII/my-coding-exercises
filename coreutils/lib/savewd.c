@@ -1,7 +1,5 @@
 /* Save and restore the working directory, possibly using a child process */
 
-#define _GNU_SOURCE
-
 #include "config.h"
 #include "savewd.h"
 #include "fcntl-safer.h"

@@ -6,7 +6,6 @@
 #include <error.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#define  __USE_GNU
 #include <unistd.h>
 
 #include "system.h"
