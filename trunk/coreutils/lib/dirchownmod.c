@@ -17,6 +17,9 @@
 # define fchmod(fd, mode) (-1)
 #endif
 
+//extern int lchmod(char* f, mode_t m);
+
+
 /* Change the ownership and mode bits of a directory. If FD is
    nonnegative, it should be a file descriptor associated with the
    directory; close it before returning. DIR is the name of the 
