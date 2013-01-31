@@ -23,5 +23,11 @@
 /* Define to 1 if you have the `lchmod' function */
 /* #undef HAVE_LCHMOD */
 
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#define major_t unsigned int
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#define minor_t unsigned int
+
 
 #endif
