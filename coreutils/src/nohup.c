@@ -12,6 +12,9 @@
 #include "closeout.h"
 #include "quote.h"
 #include "long-options.h"
+#include "fd-reopen.h"
+#include "filenamecat.h"
+#include "cloexec.h"
 
 #define PROGRAM_NAME "nohup"
 #define AUTHORS "Jim Meyering"
