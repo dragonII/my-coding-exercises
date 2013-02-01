@@ -1,4 +1,4 @@
-/* cloexec.c - set or clear the close-on-exec descriptor flag */
+/* closexec.c - set or clear the close-on-exec descriptor flag */
 
 #ifndef CLOSE_ON_EXEC_H
 #define CLOSE_ON_EXEC_H

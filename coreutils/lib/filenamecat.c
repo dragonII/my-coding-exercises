@@ -1,6 +1,6 @@
 /* Concatenate two arbitrary file names */
 
-#include "filenameconcat.h"
+#include "filenamecat.h"
 
 #include <stdlib.h>
 #include <string.h>

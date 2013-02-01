@@ -32,7 +32,7 @@ static char* longest_relative_suffix(char* f)
 
    Return NULL if malloc fails */
 
-char mfile_name_concat(char* dir, char* abase, char** base_in_result)
+char* mfile_name_concat(char* dir, char* abase, char** base_in_result)
 {
     char* dirbase = last_component(dir);
     size_t dirbaselen = base_len(dirbase);
