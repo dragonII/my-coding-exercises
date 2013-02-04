@@ -32,6 +32,11 @@
    of `digit' even when the host does not conform to POSIX */
 #define ISDIGIT(c) ((unsigned int) (c) - '0' <= 9)
 
+/* Convert a possibly-signed character to an unsigned character. This is
+   a bit safer than casting to unsigned char, since it catches some type
+   errors that the case doesn't */
+static inline unsigned char to_uchar(char ch) { return ch; }
+
 /* Take care of NLS matters. (Native Language String?)*/
 
 #include "gettext.h"
@@ -257,5 +262,9 @@ is_empty_dir(int fd_cwd, char* dir)
         return false;
     return saved_errno == 0 ? true : false;
 }
+
+#ifndef ATTRIBUTE_UNUSED
+# define ATTRIBUTE_UNUSED __attribute__ ((__unused__))
+#endif
 
 #endif // __CONFIG_H
