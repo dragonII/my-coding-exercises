@@ -8,7 +8,7 @@
 
 #include "intprops.h"
 
-#define inttostr umaxtostr
+#define inttostr imaxtostr
 #define inttype uintmax_t
 #define inttype_is_signed 0
 
