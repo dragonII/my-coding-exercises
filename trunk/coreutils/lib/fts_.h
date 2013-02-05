@@ -1,7 +1,7 @@
 /* Traverse a file hierarchy */
 
-#ifndef _FTS_H
-#define _FTS_H
+#ifndef _FTS__H
+#define _FTS__H
 
 typedef struct 
 {

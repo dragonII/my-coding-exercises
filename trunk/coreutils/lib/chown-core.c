@@ -4,10 +4,10 @@
 #include "xalloc.h"
 #include "intprops.h"
 #include "inttostr.h"
-#include "fts.h"
 
 
 #include <grp.h>
+#include <fts.h>
 
 void chopt_init(struct Chown_option* chopt)
 {

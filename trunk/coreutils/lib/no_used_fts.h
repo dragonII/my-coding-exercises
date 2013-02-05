@@ -1,5 +1,5 @@
 #include <stdbool.h>
-#include "fts_.h"
+#include "fts.h"
 
 FTS*
 xfts_open(char**, int options,
