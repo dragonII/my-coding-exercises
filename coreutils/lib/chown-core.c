@@ -5,11 +5,16 @@
 #include "intprops.h"
 #include "inttostr.h"
 #include "xfts.h"
+#include "root-dev-ino.h"
+#include "ignore-value.h"
+#include "quote.h"
 
 
 #include <grp.h>
-#include <fts.h>
 #include <error.h>
+#include <string.h>
+
+#define STREQ(a, b) (strcmp(a, b) == 0)
 
 void chopt_init(struct Chown_option* chopt)
 {

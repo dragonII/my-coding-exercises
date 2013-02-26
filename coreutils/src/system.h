@@ -267,4 +267,16 @@ is_empty_dir(int fd_cwd, char* dir)
 # define ATTRIBUTE_UNUSED __attribute__ ((__unused__))
 #endif
 
+#define emit_cycle_warning(file_name)       \
+    do                                      \
+    {                                       \
+        error(0, 0, _("\
+WARNING: Circular directory structure.\n\
+This almost centainly means that you have a corrupted file system.\n\
+NOTIFY YOUR SYSTEM MANAGER.\n\
+The following directory is part of the cycle:\n     %s\n"), \
+            file_name);                     \
+    }                                       \
+    while(0)
+
 #endif // __CONFIG_H
