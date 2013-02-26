@@ -11,7 +11,7 @@ FTS*
 xfts_open(char** argv, int options,
           int (*compar)(FTSENT**, FTSENT**))
 {
-    FTS* fts = fts_open(argv, optionss | FTS_CWDFD, compar);
+    FTS* fts = fts_open(argv, options | FTS_CWDFD, compar);
     if(fts == NULL)
     {
         /* This can fail in two ways: out of memory or with errno == EINVAL,

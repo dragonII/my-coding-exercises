@@ -8,6 +8,7 @@
 #include "root-dev-ino.h"
 #include "ignore-value.h"
 #include "quote.h"
+#include "openat.h"
 
 
 #include <grp.h>
@@ -15,6 +16,31 @@
 #include <string.h>
 
 #define STREQ(a, b) (strcmp(a, b) == 0)
+
+#define FTSENT_IS_DIRECTORY(E)      \
+    ((E)->fts_info == FTS_D         \
+     || (E)->fts_info == FTS_DC     \
+     || (E)->fts_info == FTS_DP     \
+     || (E)->fts_info == FTS_DNR)
+
+enum RCH_status
+{
+    /* we called fchown and close, and both succeeded */
+    RC_ok = 2,
+
+    /* required_uid and/or required_gid are speicified, but don't match */
+    RC_excluded,
+
+    /* SAME_INODE check failed */
+    RC_inode_changed,
+
+    /* open/fchown isn't needed, isn't safe, or doesn't work due to
+       permissions problems; fall back on chown */
+    RC_do_ordinary_chown,
+
+    /* open, fstat, fchown, or close failed */
+    RC_error
+};
 
 void chopt_init(struct Chown_option* chopt)
 {
@@ -40,6 +66,136 @@ char* gid_to_name(gid_t gid)
 }
 
 
+/* Tell the user how/if the user and group of FILE have been changed.
+   If USER is NULL, give the group-oriented messages.
+   CHANGED describes what (if anything) has happened */
+
+static void describe_change(char* file, enum Changed_status changed,
+                            char* user, char* group)
+{
+    const char* fmt;
+    char* spec;
+    char* spec_allocated = NULL;
+
+    if(changed == CH_NOT_APPLIED)
+    {
+        printf(_("neither symbolic link %s nor referent has been changed\n"),
+                file);
+        return;
+    }
+
+    if(user)
+    {
+        if(group)
+        {
+            spec_allocated = xmalloc(strlen(user) + 1 + strlen(group) + 1);
+            stpcpy(stpcpy(stpcpy(spec_allocated, user), ":"), group);
+            spec = spec_allocated;
+        }
+        else
+            spec = user;
+    }
+    else
+        spec = group;
+
+    switch(changed)
+    {
+        case CH_SUCCEEDED:
+            fmt = (user ? _("changed ownership of %s to %s\n")
+                    : group ? _("changed group of %s to %s\n")
+                    : _("no change to ownership of %s\n"));
+            break;
+        case CH_FAILED:
+            fmt = (user ? _("failed to change ownership of %s to %s\n")
+                    : group ? _("failed to change group of %s to %s\n")
+                    : _("failed to change ownership of %s\n"));
+            break;
+        case CH_NO_CHANGE_REQUESTED:
+            fmt = (user ? _("ownership of %s retained as %s\n")
+                    : group ? _("group of %s retained as %s\n")
+                    : _("ownership of %s retained\n"));
+            break;
+        default:
+            abort();
+    }
+
+    printf(fmt, file, spec);
+
+    free(spec_allocated);
+}
+
+
+/* Change the owner and/or group of the FILE to UID and/or GID (safely)
+   only if REQUIRED_UID and REQUIRED_GID match the owner and group IDs
+   of FILE. ORIG_ST must be the result of `stat'ing FILE.
+
+   The `safely' part above means that we can't simply use chown(2),
+   since FILE might be replaced with some other file between the time
+   of the preceding stat/lstat and this chown call. So here we open 
+   FILE and do everything else via the resulting file descriptor.
+   We first call fstat and verify that the dev/inode match those from
+   the preceding stat call, and only then, if appropriate (given the
+   required_uid and required_gid constraints) do we call fchown.
+
+   Return RC_do_ordinary_chown if we can't open FILE, or if FILE is a
+   special file that might have undesirable side effects when opening.
+   In this case the caller can use the less-safe ordinary chown. 
+
+   Return one of the RCH_status values. */
+static enum RCH_status
+restricted_chown(int cwd_fd, char* file,
+                 struct stat* orig_st,
+                 uid_t uid, gid_t gid,
+                 uid_t required_uid, gid_t required_gid)
+{
+    enum RCH_status status = RC_ok;
+    struct stat st;
+    int open_flags = O_NONBLOCK | O_NOCTTY;
+    int fd;
+
+    if(required_uid == (uid_t) -1 && required_gid == (gid_t) -1)
+        return RC_do_ordinary_chown;
+
+    if(! S_ISREG(orig_st->st_mode))
+    {
+        if(S_ISDIR(orig_st->st_mode))
+            open_flags |= O_DIRECTORY;
+        else
+            return RC_do_ordinary_chown;
+    }
+
+    fd = openat(cwd_fd, file, O_RDONLY | open_flags);
+    if(! (fd >= 0
+          || (errno == EACCES && S_ISREG(orig_st->st_mode)
+                && 0 <= (fd = openat(cwd_fd, file, O_WRONLY | open_flags)))))
+        return (errno == EACCES ? RC_do_ordinary_chown : RC_error);
+
+    if(fstat(fd, &st) != 0)
+        status = RC_error;
+    else if(! SAME_INODE(*orig_st, st))
+        status = RC_inode_changed;
+    else if((required_uid == (uid_t) -1 || required_uid == st.st_uid)
+            && (required_gid == (gid_t) -1 || required_gid == st.st_gid))
+    {
+        if(fchown(fd, uid, gid) == 0)
+        {
+            status = (close(fd) == 0
+                      ? RC_ok : RC_error);
+            return status;
+        }
+        else
+            status = RC_error;
+    }
+
+    { /* FIXME: remove these curly braces when we assume C99 */
+        int saved_errno = errno;
+        close(fd);
+        errno = saved_errno;
+        return status;
+    }
+}
+
+
 /* Change the owner and/or group of the file specified by FTS and ENT
    to UID and/or GID as appropriate.
    If REQUIRED_UID is not -1, then skip files with any other user ID.
@@ -59,7 +215,7 @@ static bool change_file_owner(FTS* fts, FTSENT* ent,
     bool do_chown;
     bool symlink_changed = true;
 
-    switch(ent->fts_ino)
+    switch(ent->fts_info)
     {
         case FTS_D:
             if(chopt->recurse)
@@ -203,12 +359,13 @@ static bool change_file_owner(FTS* fts, FTSENT* ent,
                 case RC_ok:
                     break;
                 case RC_do_ordinary_chown:
-                    ok = (chownat(fts->fts_cwd_fd, file, uid, gid) == 0)
+                    ok = (chownat(fts->fts_cwd_fd, file, uid, gid) == 0);
                     break;
                 case RC_error:
                     ok = false;
                     break;
-                case RC_ignore_changed:
+                case RC_inode_changed:
+                case RC_excluded:
                     do_chown = false;
                     ok = false;
                     break;
@@ -242,7 +399,7 @@ static bool change_file_owner(FTS* fts, FTSENT* ent,
                 (!ok ? CH_FAILED
                  : !symlink_changed ? CH_NOT_APPLIED
                  : !changed ? CH_NO_CHANGE_REQUESTED
-                 : CH_SUCCEEDED)
+                 : CH_SUCCEEDED);
             describe_change(file_full_name, ch_status,
                                 chopt->user_name, chopt->group_name);
         }
