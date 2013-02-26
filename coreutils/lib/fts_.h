@@ -3,6 +3,11 @@
 #ifndef _FTS__H
 #define _FTS__H
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "i-ring.h"
+
 typedef struct 
 {
     struct _ftsent* fts_cur;        /* current node */
@@ -120,6 +125,63 @@ typedef struct
 
 } FTS;
 
+
+typedef struct _ftsent 
+{
+    struct _ftsent* fts_cycle;      /* cycle node */
+    struct _ftsent* fts_parent;     /* parent directory */
+    struct _ftsent* fts_link;       /* next file in directory */
+    long fts_number;                /* local numeric value */
+    void* fts_pointer;              /* local address value */
+    char* fts_accpath;              /* access file name */
+    char* fts_path;                 /* root name; == fts_fts->fts_path */
+    int fts_errno;                  /* errno for this node */
+    int fts_symfd;                  /* fd for symlink */
+    size_t fts_pathlen;             /* strlen(fts_path) */
+
+    FTS* fts_fts;                   /* the file hierarchy itself */
+
+#define FTS_ROOTPARENTLEVEL     (-1)
+#define FTS_ROOTLEVEL           0
+    ptrdiff_t fts_level;            /* depth (-1 to N) */
+
+    size_t fts_namelen;             /* strlen(fts_name) */
+    nlink_t fts_n_dirs_remaining;   /* count down from st_nlink */
+
+#define FTS_D           1           /* preorder directory */
+#define FTS_DC          2           /* directory that causes cycles */
+#define FTS_DEFAULT     3           /* none of the above */
+#define FTS_DNR         4           /* unreadable directory */
+#define FTS_DOT         5           /* dot or dot-dot */
+#define FTS_DP          6           /* postorder directory */
+#define FTS_ERR         7           /* error; errno is set */
+#define FTS_F           8           /* regular file */
+#define FTS_INIT        9           /* initialized only */
+#define FTS_NS          10          /* stat(2) failed */
+#define FTS_NSOK        11          /* no stat(2) requested */
+#define FTS_SL          12          /* symbolic link */
+#define FTS_SLNONE      13          /* symbolic link without target */
+#define FTS_W           14          /* whiteout object */
+    unsigned short int  fts_info;   /* user flags for FTSENT structure */
+
+#define FTS_DONTCHDIR   0x01        /* don't chdir .. to the parent */
+#define FTS_SYMFOLLOW   0x02        /* followed a symlink to get here */
+    unsigned short int fts_flags;   /* private flags for FTSENT structure */
+
+#define FTS_AGAIN       1           /* read node again */
+#define FTS_FOLLOW      2           /* follow symbolic link */
+#define FTS_NOINSTR     3           /* no instructions */
+#define FTS_SKIP        4           /* discard node */
+    unsigned short int fts_instr;   /* fts_set() instructions */
+
+    struct stat fts_statp[1];       /* stat(2) information */
+    char fta_name[1];               /* file name */
+} FTSENT;
+
+
+FTSENT* fts_read(FTS*) __attribute_warn_unused_result__;
+int fts_set(FTS*, FTSENT*, int);
+int fts_close(FTS* sp) __attribute_warn_unused_result__;
 
 
 #endif

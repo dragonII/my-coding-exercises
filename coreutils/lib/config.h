@@ -29,5 +29,14 @@
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 #define minor_t unsigned int
 
+/* Define as a marker that can be attached to declarations that might not
+   be used. This helps to reduce warnings, such as from
+   GCC -Wunused-parameter. */
+#if __GNUC__ >= 3 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7)
+# define _GL_UNUSED __attribute__ ((__unused__))
+#else
+# define _GL_UNUSED
+#endif
+
 
 #endif

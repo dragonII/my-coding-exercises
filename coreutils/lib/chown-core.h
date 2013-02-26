@@ -8,6 +8,14 @@
 
 #include "../src/system.h"
 
+enum Changed_status
+{
+    CH_NOT_APPLIED = 1,
+    CH_SUCCEEDED,
+    CH_FAILED,
+    CH_NO_CHANGE_REQUESTED
+};
+
 enum Verbosity
 {
     /* Print a message for each file that is processed */
