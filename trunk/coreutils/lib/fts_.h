@@ -72,10 +72,10 @@ typedef struct
    then it would process the first entry. But that behavior is bad for
    locality of reference, and also causes trouble with inode-simulating
    file system like FAT, CIFS, FUSE-based ones, etc., when entries from
-   their name/inode chche are flushed too early.
+   their name/inode cache are flushed too early.
    Use the flag to make fts_open and fts_read defer the stat/lstat/fststat
    of each entry until it is actually processed. However, note that if you
-   use this option and also spcify a comparison function, that function may
+   use this option and also specify a comparison function, that function may
    not examine any data via fts_statp. However, when fts_statp->st_mode is
    nonzero, the S_IMFT type bits are valid, with mapped dirend.d_type data.
    Of course, that happens only on file systems that provide useful
