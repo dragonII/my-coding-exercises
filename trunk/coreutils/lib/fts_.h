@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "i-ring.h"
+#include "cycle-check.h"
 
 typedef struct 
 {
@@ -175,13 +176,14 @@ typedef struct _ftsent
     unsigned short int fts_instr;   /* fts_set() instructions */
 
     struct stat fts_statp[1];       /* stat(2) information */
-    char fta_name[1];               /* file name */
+    char fts_name[1];               /* file name */
 } FTSENT;
 
 
 FTSENT* fts_read(FTS*) __attribute_warn_unused_result__;
 int fts_set(FTS*, FTSENT*, int);
 int fts_close(FTS* sp) __attribute_warn_unused_result__;
+FTS* fts_open(char**, int, int (*) (FTSENT**, FTSENT**));
 
 
 #endif

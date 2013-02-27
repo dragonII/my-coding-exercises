@@ -4,12 +4,15 @@
 #include "hash.h"
 #include "config.h"
 #include "fts-cycle.h"
+#include "closexec.h"
 
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 
 #ifndef __set_errno
@@ -20,10 +23,28 @@
 # define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
+#define fts_assert(expr)        \
+    do                          \
+    {                           \
+        if(!(expr))             \
+            abort();            \
+    }                           \
+    while(false)                
+
+#define ISDOT(a)    (a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
+#define STREQ(a, b) (strcmp((a), (b)) == 0)
+
 
 #define CLR(opt)    (sp->fts_options &= ~(opt))
 #define ISSET(opt)  (sp->fts_options & (opt))
 #define SET(opt)    (sp->fts_options |= (opt))
+
+enum Fts_stat
+{
+    FTS_NO_STAT_REQUIRED = 1,
+    FTS_STAT_REQUIRED = 2
+};
+
 
 /* fts_set takes the stream as an argument alghough it's not used in this
    implementation; it would be necessary if anyone wanted to add global
@@ -52,6 +73,219 @@ fts_maxarglen(char** argv)
 
     return max + 1;
 }
+
+/* Allow essentially unlimited file name length; find, rm, ls should
+   all work on any tree. Most systems will allow creation of file
+   names much longer than MAXPATHLEN, even though the kernel won't
+   resolve them. Add the size (not just what's needed) plus 256 bytes
+   so don't realloc the file name 2 bytes at a time. */
+static bool fts_palloc(FTS* sp, size_t more)
+{
+    char* p;
+    size_t new_len = sp->fts_pathlen + more + 256;
+
+    /* See if fts_pathlen would overflow */
+    if(new_len < sp->fts_pathlen)
+    {
+        free(sp->fts_path);
+        sp->fts_path = NULL;
+        __set_errno(ENAMETOOLONG);
+        return false;
+    }
+    sp->fts_pathlen = new_len;
+    p = realloc(sp->fts_path, sp->fts_pathlen);
+    if(p == NULL)
+    {
+        free(sp->fts_path);
+        sp->fts_path = NULL;
+        return false;
+    }
+    sp->fts_path = p;
+    return true;
+}
+
+
+static FTSENT* fts_alloc(FTS* sp, char* name, register size_t namelen)
+{
+    register FTSENT* p;
+    size_t len;
+
+    /* The file name is a variable length array. Allocate the FTSENT
+       structure and the file name in one chunk. */
+    len = sizeof(FTSENT) + namelen;
+    if((p = malloc(len)) == NULL)
+        return NULL;
+
+    /* Copy the name and guarantee NUL termination */
+    memmove(p->fts_name, name, namelen);
+    p->fts_name[namelen] = '\0';
+
+    p->fts_namelen = namelen;
+    p->fts_fts = sp;
+    p->fts_path = sp->fts_path;
+    p->fts_errno = 0;
+    p->fts_flags = 0;
+    p->fts_instr = FTS_NOINSTR;
+    p->fts_number = 0;
+    p->fts_pointer = NULL;
+    
+    return p;
+}
+
+/* Overflow the fts_statp->st_size member (otherwise unused, when
+   fts_info is FTS_NSOK) to indicate whether fts_read should stat
+   this entry or not */
+static void fts_set_stat_required(FTSENT* p, bool required)
+{
+    fts_assert(p->fts_info == FTS_NSOK);
+    p->fts_statp->st_size = (required 
+                             ? FTS_STAT_REQUIRED
+                             : FTS_NO_STAT_REQUIRED);
+}
+
+
+static unsigned short int
+fts_stat(FTS* sp, register FTSENT* p, bool follow)
+{
+    struct stat* sbp = p->fts_statp;
+    int saved_errno;
+
+    if(p->fts_level == FTS_ROOTLEVEL && ISSET(FTS_COMFOLLOW))
+        follow = true;
+
+    /* If doing a logical walk, or application requested FTS_FOLLOW, do
+       a stat(2). If that fails, check for a non-existent symlink. If
+       fail, set the errno from the stat call. */
+    if(ISSET(FTS_LOGICAL) || follow)
+    {
+        if(stat(p->fts_accpath, sbp))
+        {
+            saved_errno = errno;
+            if(errno == ENOENT
+                && lstat(p->fts_accpath, sbp) == 0)
+            {
+                __set_errno(0);
+                return FTS_SLNONE;
+            }
+            p->fts_errno = saved_errno;
+            goto err;
+        }
+    }
+    else if(fstatat(sp->fts_cwd_fd, p->fts_accpath, sbp,
+                        AT_SYMLINK_NOFOLLOW))
+    {
+        p->fts_errno = errno;
+err:        
+        memset(sbp, 0, sizeof(struct stat));
+        return FTS_NS;
+    }
+    if(S_ISDIR(sbp->st_mode))
+    {
+        p->fts_n_dirs_remaining = (sbp->st_nlink - (ISSET(FTS_SEEDOT) ? 0 : 2));
+        if(ISDOT(p->fts_name))
+        {
+            /* Command-line "." and ".." are real directories */
+            return (p->fts_level == FTS_ROOTLEVEL ? FTS_D : FTS_DOT);
+        }
+
+        return FTS_D;
+    }
+    if(S_ISLNK(sbp->st_mode))
+        return FTS_SL;
+    if(S_ISREG(sbp->st_mode))
+        return FTS_F;
+    return FTS_DEFAULT;
+}
+
+
+static int fts_compar(const void* a, const void* b)
+{
+    /* Convert A and B to the correct types, to pacify the compiler, and
+       for portability to bizarre hosts where "void*" and "FTSENT**" differ
+       in runtime representation. The comparison function cannot modify
+       *a and *b, but there is no compile-time check for this */
+    FTSENT **pa = (FTSENT**)a;
+    FTSENT **pb = (FTSENT**)b;
+    return pa[0]->fts_fts->fts_compar(pa, pb);
+}
+
+static FTSENT* fts_sort(FTS* sp, FTSENT* head, register size_t nitems)
+{
+    register FTSENT **ap, *p;
+
+    /* On most modern hosts, void* and FTSENT** have the same
+       run-time representation, and one can convert sp->fts_compar to
+       the type qsort expects without problem. Use the heuristic that
+       this is OK if the two pointer types are the same size, and if
+       converting FTSENT** to long int is the same as converting
+       FTSENT** to void* and then to long int. This heuristic isn't
+       valid in general but we don't know of any counterexamples */
+    FTSENT* dummy;
+    int (*compare) (const void*, const void *) = 
+        ((sizeof &dummy == sizeof(void*)
+         && (long int) &dummy == (long int)(void*) &dummy)
+        ? (int (*) (const void*, const void*))sp->fts_compar
+        : fts_compar);
+
+    /* Construct an array of pointers to the structures and call qsort(3).
+       Reassemble the array in the order returned by qsort. If unable to
+       sort for memory reasons, return the directory entries in their
+       current order. Allocate enough space for the current needs plus
+       40 so don't realloc one entry at a time. */
+    if(nitems > sp->fts_nitems)
+    {
+        FTSENT **a;
+
+        sp->fts_nitems = nitems + 40;
+        if(SIZE_MAX / sizeof *a < sp->fts_nitems
+            || !(a = realloc(sp->fts_array,
+                             sp->fts_nitems * sizeof *a)))
+        {
+            free(sp->fts_array);
+            sp->fts_array = NULL;
+            sp->fts_nitems = 0;
+            return head;
+        }
+        sp->fts_array = a;
+    }
+    for(ap = sp->fts_array, p = head; p; p = p->fts_link)
+        *ap++ = p;
+    qsort((void*)sp->fts_array, nitems, sizeof(FTSENT*), compare);
+    for(head = *(ap = sp->fts_array); --nitems; ++ap)
+        ap[0]->fts_link = ap[1];
+    ap[0]->fts_link = NULL;
+    return head;
+}
+
+
+/* Open the directory DIR is possible, and return a file
+   descriptor. Return -1 and set errno on failure. It doesn't matter
+   whether the file descriptor has read or write access */
+static inline int
+diropen(FTS* sp, char* dir)
+{
+    int open_flags = (O_RDONLY | O_DIRECTORY | O_NOCTTY | O_NONBLOCK
+                      | (ISSET(FTS_PHYSICAL) ? O_NOFOLLOW : 0));
+    int fd = (ISSET(FTS_CWDFD)
+              ? openat(sp->fts_cwd_fd, dir, open_flags)
+              : open(dir, open_flags));
+    if(fd >= 0)
+        set_closexec_flag(fd, true);
+    return fd;
+}
+
+
+static void fts_lfree(register FTSENT* head)
+{
+    register FTSENT* p;
+    /* Free a linked list of structures */
+    while((p = head))
+    {
+        head = head->fts_link;
+        free(p);
+    }
+}
+
 
 FTS* fts_open(char** argv, int options,
               int (*compar)(FTSENT**, FTSENT**))
@@ -148,7 +382,7 @@ FTS* fts_open(char** argv, int options,
             fts_set_stat_required(p, true);
         }
         else
-            p->fts_info = fts_stat(sp, p, flase);
+            p->fts_info = fts_stat(sp, p, false);
     
         /* If comparison routine supplied, traverse in sorted
            order; otherwise traverse in the order specified. */
@@ -204,16 +438,6 @@ mem1:
     return NULL;
 }
 
-static void fts_lfree(register FTSENT* head)
-{
-    register FTSENT* p;
-    /* Free linked list of structures */
-    while((p = head))
-    {
-        head = head->fts_link;
-        free(p);
-    }
-}
 
 static void fd_ring_clear(I_ring* fd_ring)
 {

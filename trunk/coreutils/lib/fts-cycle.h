@@ -7,5 +7,6 @@
 
 
 void free_dir(FTS* sp);
+bool setup_dir(FTS* fts);
 
 #endif

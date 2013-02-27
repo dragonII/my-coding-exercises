@@ -17,7 +17,12 @@
 # define fchmod(fd, mode) (-1)
 #endif
 
-//extern int lchmod(char* f, mode_t m);
+//static int lchmod(char* f, mode_t m)
+//{
+//    errno = ENOSYS;
+//    return -1;
+//}
+
 
 
 /* Change the ownership and mode bits of a directory. If FD is
