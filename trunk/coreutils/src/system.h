@@ -279,4 +279,6 @@ The following directory is part of the cycle:\n     %s\n"), \
     }                                       \
     while(0)
 
+#define HOST_OPERATING_SYSTEM "GNU/Linux"
+
 #endif // __CONFIG_H
