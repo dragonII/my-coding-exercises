@@ -14,6 +14,7 @@
 #include <grp.h>
 #include <error.h>
 #include <string.h>
+#include <pwd.h>
 
 #define STREQ(a, b) (strcmp(a, b) == 0)
 
@@ -63,6 +64,18 @@ char* gid_to_name(gid_t gid)
     return xstrdup(grp ? grp->gr_name
                     : TYPE_SIGNED(gid_t) ? imaxtostr(gid, buf)
                     : umaxtostr(gid, buf));
+}
+
+/* Convert the numeric user-id, UID, to a string stored in xmalloc'd memory,
+   and return it. If there's no corresponding user name, use the decimal
+   representation of the ID. */
+char* uid_to_name(uid_t uid)
+{
+    char buf[INT_BUFSIZE_BOUND(intmax_t)];
+    struct passwd* pwd = getpwuid(uid);
+    return xstrdup(pwd ? pwd->pw_name
+                   : TYPE_SIGNED(uid_t) ? imaxtostr(uid, buf)
+                   : umaxtostr(uid, buf));
 }
 
 

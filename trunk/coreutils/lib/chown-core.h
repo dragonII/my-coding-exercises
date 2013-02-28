@@ -57,6 +57,7 @@ struct Chown_option
 void chopt_init(struct Chown_option* chopt);
 void chopt_free(struct Chown_option* chopt ATTRIBUTE_UNUSED);
 
+char* uid_to_name(uid_t uid);
 char* gid_to_name(gid_t gid);
 
 bool chown_files(char** files, int bit_flags,
