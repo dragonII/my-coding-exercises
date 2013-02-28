@@ -6,9 +6,15 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <error.h>
+#include <errno.h>
 #include <string.h>
 
 #include "operand2sig.h"
+#include "xalloc.h"
+#include "sig2str.h"
+#include "gettext.h"
+
+#define _(msgid) gettext(msgid)
 
 #ifndef ISDIGIT
 # define ISDIGIT(c) ((unsigned int)(c) - '0' <= 9)
