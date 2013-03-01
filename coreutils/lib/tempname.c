@@ -3,6 +3,8 @@
 #include <sys/types.h>
 #include <error.h>
 #include <string.h>
+#include <stdbool.h>
+
 #include <errno.h>
 #ifndef __set_errno
 # define __set_errno(Val) errno = (Val)
@@ -30,6 +32,18 @@
 #define struct_stat64 struct stat
 #define __open open
 #define __lxst(version, file, buf) lstat(file, buf)
+
+#include "randint.h"
+
+static inline bool
+check_x_suffix(char* s, size_t len)
+{
+    return len <= strspn(s, "X");
+}
+
+/* These are the characters used in temporary file names */
+static char letters[] =
+"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 /* Generate a temporary file name based on TMPL. TMPL must match the
    rules for mk[s]temp (i.e. end in at least X_SUFFIX_LEN "X"s,
