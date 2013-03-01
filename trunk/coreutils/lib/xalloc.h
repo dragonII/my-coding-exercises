@@ -20,6 +20,10 @@ void* x2realloc(void* p, size_t* pn);
 void* xmemdup(void* p, size_t s);
 char* xstrdup(char* str);
 
+/* Allocate memory for N elemants of type T, with error checking */
+#define XNMALLOC(n, t) \
+    ((t *) (sizeof (t) == 1 ? xmalloc (n) : xnmalloc (n, sizeof(t))))
+
 /* Return 1 if an array of N objects, each of size S, cannot exist due
    to size arithmetic overflow. S must be positive and N must be
    nonnegative. This is a macro, not an inline function, so that it
@@ -73,6 +77,15 @@ xnmalloc(size_t n, size_t s)
     if(xalloc_oversized(n, s))
         xalloc_die();
     return xmalloc(n * s);
+}
+
+
+/* Return a pointer to a new buffer of N bytes. This is like xmalloc,
+   except it returns char* */
+static inline char*
+xcharalloc(size_t n)
+{
+    return XNMALLOC(n, char);
 }
 
 
