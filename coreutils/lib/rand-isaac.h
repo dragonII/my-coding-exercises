@@ -20,6 +20,7 @@ struct isaac_state
 };
 
 void isaac_seed(struct isaac_state* s);
+void isaac_refill(struct isaac_state* s, uint32_t r[]);
 
 
 #endif

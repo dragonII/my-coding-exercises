@@ -29,5 +29,8 @@ struct randint_source
 
 struct randint_source*
 randint_all_new(char* name, size_t bytes_bound);
+randint randint_genmax(struct randint_source* s, randint genmax);
+void randint_free(struct randint_source* s);
+int randint_all_free(struct randint_source* s);
 
 #endif

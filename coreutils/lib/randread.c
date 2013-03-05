@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <error.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "randread.h"
 #include "xalloc.h"
@@ -23,6 +24,11 @@
 
 #ifndef _
 # define _(msgid) gettext(msgid)
+#endif
+
+#ifndef ALIGNED_POINTER
+# define alignof(type) offsetof(struct { char c; type x; }, x)
+# define ALIGNED_POINTER(ptr, type) ((size_t)(ptr) % alignof(type) == 0)
 #endif
 
 
@@ -84,4 +90,91 @@ randread_new(char* name, size_t bytes_bound)
 
         return s;
     }
+}
+
+
+/* Place SIZE random bytes into the buffer beginning at P, using
+   the stream in S. */
+static void
+readsource(struct randread_source* s, unsigned char* p, size_t size)
+{
+    for(;;)
+    {
+        size_t inbytes = fread(p, sizeof *p, size, s->source);
+        int fread_errno = errno;
+        p += inbytes;
+        size -= inbytes;
+        if(size == 0)
+            break;
+        errno = (ferror(s->source) ? fread_errno : 0);
+        s->handler(s->handler_arg);
+    }
+}
+
+
+/* Place SIZE pseudorandom bytes into the buffer beginning at P, using
+   the buffered ISAAC generator in ISAAC */
+static void
+readisaac(struct isaac* isaac, unsigned char* p, size_t size)
+{
+    size_t inbytes = isaac->buffered;
+
+    for(;;)
+    {
+        if(size <= inbytes)
+        {
+            memcpy(p, isaac->data.b + ISAAC_BYTES - inbytes, size);
+            isaac->buffered = inbytes - size;
+            return;
+        }
+
+        memcpy(p, isaac->data.b + ISAAC_BYTES - inbytes, inbytes);
+        p += inbytes;
+        size -= inbytes;
+
+        /* If P is aligned, write to *P directly to avoid the overhead
+           of copying from the buffer */
+        if(ALIGNED_POINTER(p, uint32_t))
+        {
+            uint32_t* wp = (uint32_t*)p;
+            while(ISAAC_BYTES <= size)
+            {
+                isaac_refill(&isaac->state, wp);
+                wp += ISAAC_WORDS;
+                size -= ISAAC_BYTES;
+                if(size == 0)
+                {
+                    isaac->buffered = 0;
+                    return;
+                }
+            }
+            p = (unsigned char *)wp;
+        }
+        isaac_refill(&isaac->state, isaac->data.w);
+        inbytes = ISAAC_BYTES;
+    }
+}
+
+
+/* Consume random data from *S to generate a random buffer BUF of size
+   SIZE */
+void randread(struct randread_source* s, void* buf, size_t size)
+{
+    if(s->source)
+        readsource(s, buf, size);
+    else
+        readisaac(&s->buf.isaac, buf, size);
+}
+
+
+/* Clear *S so that it no longer contains undelivered random data, and
+   deallocate any system resources associated with *S. Return 0 if
+   successful, a negative number (setting errno) if not (this is rare,
+   but can occur in theory if there is an input error) */
+int randread_free(struct randread_source* s)
+{
+    FILE* source = s->source;
+    memset(s, 0, sizeof *s);
+    free(s);
+    return(source ? fclose(source) : 0);
 }

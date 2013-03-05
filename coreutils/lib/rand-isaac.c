@@ -10,6 +10,59 @@
 #include "gethrxtime.h"
 
 
+/* this index operation is more effiecient on many processors */
+#define ind(mm, x) \
+    (* (uint32_t *) ((char *) (mm)   \
+                    + ((x) & (ISAAC_WORDS - 1) * sizeof (uint32_t))))
+
+/* The central step. This uses two temporaries, x and y. mm is the
+   whole state array, while m is a pointer to the current word. off is
+   the offset from m to the word ISAAC_WORDS/2 words away in the mm aray,
+   i.e. +/- ISAAC_WORDS/2 */
+#define isaac_step(mix, a, b, mm, m, off, r) \
+(   \
+    a = ((a) ^ (mix)) + (m)[off],   \
+    x = *(m),   \
+    *(m) = y = ind(mm, x) + (a) + (b),  \
+    *(r) = b = ind(mm, (y) >> ISAAC_LOG) + x    \
+)
+
+
+/* Use and update *S to generate random data to fill R */
+void isaac_refill(struct isaac_state* s, uint32_t r[ISAAC_WORDS])
+{
+    uint32_t a, b;          /* Caches of a and b */
+    uint32_t x, y;          /* Temps needed by isaac_step macro */
+    uint32_t *m = s->mm;    /* Pointer into state array */
+
+    a = s->a;
+    b = s->b + (++s->c);
+
+    do
+    {
+        isaac_step(a << 13, a, b, s->mm, m, ISAAC_WORDS / 2, r);
+        isaac_step(a >>  6, a, b, s->mm, m + 1, ISAAC_WORDS / 2, r + 1);
+        isaac_step(a <<  2, a, b, s->mm, m + 2, ISAAC_WORDS / 2, r + 2);
+        isaac_step(a >> 16, a, b, s->mm, m + 3, ISAAC_WORDS / 2, r + 3);
+        r += 4;
+    }
+
+    while((m += 4) < s->mm + ISAAC_WORDS / 2);
+    do
+    {
+        isaac_step(a << 13, a, b, s->mm, m, -ISAAC_WORDS / 2, r);
+        isaac_step(a >>  6, a, b, s->mm, m + 1, -ISAAC_WORDS / 2, r + 1);
+        isaac_step(a <<  2, a, b, s->mm, m + 2, -ISAAC_WORDS / 2, r + 2);
+        isaac_step(a >> 16, a, b, s->mm, m + 3, -ISAAC_WORDS / 2, r + 3);
+        r += 4;
+    }
+    while((m += 4) < s->mm + ISAAC_WORDS);
+    s->a = a;
+    s->b = b;
+}
+
+
+
 /* The basic seed-scrambling step for initialization, based on Bob
    Jenkins's 256-bit hash */
 #define mix(a,b,c,d,e,f,g,h) \
