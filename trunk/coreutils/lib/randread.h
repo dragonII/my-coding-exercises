@@ -57,5 +57,7 @@ struct randread_source
 
 struct randread_source*
 randread_new(char* name, size_t bytes_bound);
+void randread(struct randread_source* s, void* buf, size_t size);
+int randread_free(struct randread_source* s);
 
 #endif

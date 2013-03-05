@@ -4,6 +4,7 @@
 #include <error.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include <errno.h>
 #ifndef __set_errno
@@ -30,8 +31,9 @@
 #include <fcntl.h>
 
 #define struct_stat64 struct stat
+#define __mkdir mkdir
 #define __open open
-#define __lxst(version, file, buf) lstat(file, buf)
+#define __lxstat64(version, file, buf) lstat(file, buf)
 
 #include "randint.h"
 
