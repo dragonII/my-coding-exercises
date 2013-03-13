@@ -1,6 +1,7 @@
 /* provide a replacement openat function */
 
 #include "openat.h"
+#include "openat-priv.h"
 
 /* Return true if our openat implementation must resort to
    using save_cwd and restore_cwd */

@@ -23,7 +23,7 @@ bool yesno(void)
     else
     {
         response[response_len - 1] = '\0';
-        yes = (0 < rpmatch(response));
+        yes = (rpmatch(response) > 0);
     }
 
     free(response);

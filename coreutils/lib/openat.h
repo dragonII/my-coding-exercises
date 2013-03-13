@@ -29,6 +29,14 @@ lchownat(int fd, char* file, uid_t owner, gid_t group)
     return fchownat(fd, file, owner, group, AT_SYMLINK_NOFOLLOW);
 }
 
+static inline int
+lstatat(int fd, char* name, struct stat* st)
+{
+    return fstatat(fd, name, st, AT_SYMLINK_NOFOLLOW);
+}
+
 bool openat_needs_fchdir(void);
+
+
 
 #endif

@@ -12,7 +12,18 @@
 #include "xalloc.h"
 #include "openat.h"
 #include "same-inode.h"
+#include "openat-priv.h"
+#include "intprops.h"
 
+
+/* The results of open() in this file are not used with fchdir,
+   and we do not leak fds to any single-threaded code that could use stdio,
+   therefore save some unnecessary work in fchdir.c */
+#define PROC_SELF_FD_FORMAT "/proc/self/fd/%d/%s"
+
+#define PROC_SELF_FD_NAME_SIZE_BOUND(len)       \
+        (sizeof PROC_SELF_FD_FORMAT - sizeof "%d%s" \
+        + INT_STRLEN_BOUND(int) + (len) + 1)
 
 /* Set BUF to the expansion of PROC_SELF_FD_FORMAT, using FD and FILE
    respectively for %d and %s. If successful, return BUF if the

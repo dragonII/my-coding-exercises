@@ -9,7 +9,7 @@
 #include <string.h>
 #include <regex.h>
 #include "gettext.h"
-#ifndef _(msgid)
+#ifndef _
 # define _(msgid) gettext(msgid)
 # define N_(msgid) gettext_noop(msgid)
 #endif
