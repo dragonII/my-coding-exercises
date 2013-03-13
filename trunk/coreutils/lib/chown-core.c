@@ -16,7 +16,9 @@
 #include <string.h>
 #include <pwd.h>
 
+#ifndef STREQ
 #define STREQ(a, b) (strcmp(a, b) == 0)
+#endif
 
 #define FTSENT_IS_DIRECTORY(E)      \
     ((E)->fts_info == FTS_D         \

@@ -169,7 +169,7 @@ int main(int argc, char** argv)
         saved_stderr_fd = dup(STDERR_FILENO);
 
         if(0 <= saved_stderr_fd
-                && set_cloexec_flag(saved_stderr_fd, true) != 0)
+                && set_closexec_flag(saved_stderr_fd, true) != 0)
             error(exit_internal_failure, errno,
                     _("failed to set the copy of stderr to close an exec"));
 

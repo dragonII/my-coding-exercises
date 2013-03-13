@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
-#include "../src/system.h"
+#include "system.h"
 
 enum Changed_status
 {

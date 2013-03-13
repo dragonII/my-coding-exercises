@@ -14,7 +14,7 @@
 #include "dirname.h"
 #include "mkancesdirs.h"
 #include "quote.h"
-#include "../src/system.h"
+#include "system.h"
 #include "dirchownmod.h"
 
 #ifndef HAVE_FCHMOD
