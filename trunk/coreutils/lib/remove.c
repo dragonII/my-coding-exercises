@@ -14,6 +14,7 @@
 
 #include <errno.h>
 #include <error.h>
+#include <assert.h>
 
 
 enum Ternary
@@ -308,6 +309,35 @@ static void mark_ancestor_dirs(FTSENT* ent)
 }
 
 
+/* When a function like unlink, rmdir, or fstatat fails with an errno
+   value of ERRNUM, return true if the specifed file system object
+   is guaranteed not to exist; otherwise, return false */
+static inline bool
+nonexistent_file_errno(int errnum)
+{
+    /* Do not include ELOOP here, since the specified file may indeed
+       exist, but be (in)accessable only via too long symlink chain.
+       Likewise for ENAMETOOLONG, since rm -f ./././.../foo may fail
+       if the "..." part expands to a long enough sequence of "./"s,
+       even though ./foo does indeed exist */
+    switch(errnum)
+    {
+        case ENOENT:
+        case ENOTDIR:
+            return true;
+        default:
+            return false;
+    }
+}
+
+/* Encapsulate the test for whether the errno value, ERRNUM, is ignorable */
+static inline bool
+ignorable_missing(struct rm_options* x, int errnum)
+{
+    return x->ignore_missing_files && nonexistent_file_errno(errnum);
+}
+
+
 /* Remove the file system object specified by ENT. IS_DIR specifies
    whether it is expected to be a directory or non-directory.
    Return RM_OK upon success, else RM_ERROR */
@@ -474,7 +504,7 @@ rm_fts(FTS* fts, FTSENT* ent, struct rm_options* x)
             return RM_ERROR;
 
         default:
-            error(0, 0, _("unexpected failure: fts_info=%s: %s\n"
+            error(0, 0, _("unexpected failure: fts_info=%d: %s\n"
                           "please report to %s"),
                         ent->fts_info,
                         quote(ent->fts_path),

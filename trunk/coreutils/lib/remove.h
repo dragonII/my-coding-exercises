@@ -68,6 +68,14 @@ enum RM_status
 #define VALID_STATUS(S)     \
     ((S) == RM_OK || (S) == RM_USER_DECLINED || (S) == RM_ERROR)
 
+#define UPDATE_STATUS(S, New_value)     \
+    do                                  \
+    {                                   \
+        if((New_value) == RM_ERROR      \
+            || ((New_value) == RM_USER_DECLINED && (S) == RM_OK))   \
+            (S) = (New_value);          \
+    } while(0)
+
 enum RM_status
 rm(char** file, struct rm_options* x);
 
