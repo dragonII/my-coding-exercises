@@ -4,6 +4,7 @@
 #define REMOVE_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "dev-ino.h"
 
@@ -63,6 +64,9 @@ enum RM_status
     RM_ERROR,
     RM_NONEMPTY_DIR
 };
+
+#define VALID_STATUS(S)     \
+    ((S) == RM_OK || (S) == RM_USER_DECLINED || (S) == RM_ERROR)
 
 enum RM_status
 rm(char** file, struct rm_options* x);

@@ -10,6 +10,10 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+#ifndef OPENAT_BUFFER_SIZE
+#define OPENAT_BUFFER_SIZE 512
+#endif
+
 /* Using these function names makes application code
    slightly more readable than it would be with
    fchownat (..., 0) or fchownat (..., AT_SYMLINK_NOFOLLOW). */
@@ -25,6 +29,6 @@ lchownat(int fd, char* file, uid_t owner, gid_t group)
     return fchownat(fd, file, owner, group, AT_SYMLINK_NOFOLLOW);
 }
 
-
+bool openat_needs_fchdir(void);
 
 #endif

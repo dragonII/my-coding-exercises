@@ -2,14 +2,69 @@
 
 #include "argmatch.h"
 #include "gettext.h"
+#include "quote.h"
 
 #include <sys/types.h>
 #include <error.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdbool.h>
 
-#ifndef _(msgid)
+#ifndef _
 #define _(msgid) gettext(msgid)
 #endif
+
+/* If ARG is an unambiguous match for an element of the
+   NULL-terminated array ARGLIST, return the index in ARGLIST
+   of the matched element, else -1 if it does not match any element
+   or -2 if it is ambiguous (is a prefix of more than one element).
+
+   If VALLIST is none null, use it to resolve ambiguities limited to
+   synonyms, i.e., for
+     "yes", "yop" -> 0
+     "no", "nope" -> 1
+   "y" is a valid argument, for `0', and "n" for `1'. */
+ptrdiff_t
+argmatch(char* arg, char** arglist,
+         char* vallist, size_t valsize)
+{
+    size_t i;                   /* Temporary index in ARGLIST */
+    size_t arglen;              /* Length of ARG */
+    ptrdiff_t matchind = -1;    /* Index of first nonexact match */
+    bool ambiguous = false;     /* If true, multiple nonexact match(es) */
+
+    arglen = strlen(arg);
+
+    /* Test all elements for either exact match or abbreviated matches */
+    for(i = 0; arglist[i]; i++)
+    {
+        if(!strncmp(arglist[i], arg, arglen))
+        {
+            if(strlen(arglist[i]) == arglen)
+                /* Exact match */
+                return i;
+            else if(matchind == -1)
+                /* First nonexact match found */
+                matchind = i;
+            else
+            {
+                /* Second nonexact match found */
+                if(vallist == NULL
+                    || memcmp(vallist + valsize * matchind,
+                              vallist + valsize * i, valsize))
+                {
+                    /* There is a real ambiguity, or we could not
+                       disambiguate */
+                    ambiguous = true;
+                }
+            }
+        }
+    }
+    if(ambiguous)
+        return -2;
+    else
+        return matchind;
+}
 
 /* Error reporting for argmatch.
    CONTEXT is a description of the type of entity that was being matched.
@@ -18,7 +73,7 @@
 void
 argmatch_invalid(char* context, char* value, ptrdiff_t problem)
 {
-    char* format = (problem == -1
+    const char* format = (problem == -1
                     ? _("invalid argument %s for %s")
                     : _("ambiguous argument %s for %s"));
 

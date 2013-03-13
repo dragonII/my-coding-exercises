@@ -9,6 +9,10 @@
 struct dev_ino*
 get_root_dev_ino(struct dev_ino* root_d_i);
 
+#ifndef STREQ
+#define STREQ(a, b) (strcmp((a), (b)) == 0)
+#endif
+
 /* These macros are common to the programs that support the
    --preserve-root and --no-preserve-root options. */
 # define ROOT_DEV_INO_CHECK(Root_dev_ino, Dir_statbuf) \

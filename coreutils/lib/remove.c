@@ -6,9 +6,312 @@
 #include "root-dev-ino.h"
 #include "system.h"
 #include "stripslash.h"
+#include "quote.h"
+#include "write-any-file.h"
+#include "openat.h"
 
 #include <errno.h>
 #include <error.h>
+
+
+enum Ternary
+{
+    T_UNKNOWN = 2,
+    T_NO,
+    T_YES
+};
+
+typedef enum Ternary Ternary;
+
+
+/* The prompt function may be called twice for a given directory.
+   The first time, we ask whether to descend into it, and the
+   second time, we ask whether to remove it. */
+enum Prompt_action
+{
+    PA_DESCEND_INTO_DIR = 2,
+    PA_REMOVE_DIR
+};
+
+
+/* Like fstatat, but cache the result. If ST->st_size is -1, the
+   status has not been gotten yet. If less than -1, fstatat failed
+   with errno == ST->st_ino. Otherwise, the status has already
+   been gotten, so return 0. */
+static int
+cache_fstatat(int fd, char* file, struct stat* st, int flag)
+{
+    if(st->st_size == -1 && fstatat(fd, file, st, flag) != 0)
+    {
+        st->st_size = -2;
+        st->st_ino = errno;
+    }
+    if(st->st_size >= 0)
+        return 0;
+    errno = (int)st->st_ino;
+    return -1;
+}
+
+
+/* Initialize a fstatat cache *ST. Return ST for convenient */
+static inline struct stat* 
+cache_stat_init(struct stat* st)
+{
+    st->st_size = -1;
+    return st;
+}
+
+/* Return 1 if FILE is an unwritable non-symlink,
+   0 if it is writable or some other type of file,
+   -1 and set errno if there is some problem in determining the answer.
+   Use FULL_NAME only if necessary.
+   Set *BUF to the file status.
+   This is to avoid calling euidaccess when FILE is a symlink. */
+static int write_protected_non_symlink(int fd_cwd,
+                                       char* file,
+                                       char* full_name,
+                                       struct stat* buf)
+{
+    if(can_write_any_file())
+        return 0;
+    if(cache_fstatat(fd_cwd, file, buf, AT_SYMLINK_NOFOLLOW) != 0)
+        return -1;
+    if(S_ISLNK(buf->st_mode))
+        return 0;
+    /* Here, we know FILE is not a symlink */
+
+    /* In order to be reentrant -- i.e., to avoid changing the working
+       directory, and at the same time to be able to deal with alternate
+       access control machanisms (ACLs, xattr-style attributes) and
+       arbitrarily deep trees -- we need a function like eaccessat, i.e.,
+       like Solaris's eaccess, but fd-relative, in the spirit of openat */
+
+    /* In the absence of a native eaccessat function, here are some
+       of the implementation choices [#4 and #5 were suggested by Paul Eggert]:
+       1) call openat with O_WRONLY|O_NOCTTY
+          Disadvantage: may create the file and doesn't work for directory,
+          may mistakenly report `unwritable' for EROFS or ACLs even though
+          perm bits say the file is writable.
+
+       2) fake eaccessat (save_cwd, fchdir, call euidaccess, restore_cwd)
+          Disadvantage: changes working directory (not reentrant) and can't
+          work if save_cwd fails.
+
+       3) if (euidaccess (full_name, W_OK) == 0)
+          Disadvantage: doesn't work if full_name is too long.
+          Inefficient for every deep trees (O(Depth^2)).
+
+       4) If the full pathname is sufficiently short (say, less than
+          PATH_MAX or 8192 bytes, whichever is shorter):
+          use method(3) (i.e., euidaccess (full_name, W_OK));
+          Otherwise: vfork, fchdir in the child, run euidaccess in the
+          child, then the child exits with a status that tells the parent
+          whether euidaccess succeeded.
+
+          This avoids the O(N**2) algorithm of method(3), and it also avoids
+          the failure-due-to-too-long-file-names of method (3), but it's fast
+          in the normal shallow case. It also avoids the lack-of-reentrancy
+          and save the save_cwd problem.
+          Disadvantage: it uses a process slot for very-long file names,
+          and would be very slow for hieararchies with many such files.
+
+       5) If the full file name is sufficiently short (say, less than
+          PATH_MAX or 8192 bytes, whichever is shorter):
+          use method (3) (i.e., euidaccess (full_name, W_OK));
+          Otherwise: look just at the file bits. Perhaps issue a warning
+          the first time this occurs.
+
+          This is like (4), except for the "Otherwise" case where it isn't as
+          "perfect" as (4) but is considerably faster. It confirms to current
+          POSIX, and is uniformly better than what Solaris and FreeBSD do (they
+          mess up with long file names). */
+    {
+        /* This implements #1: on decent systems, either faccessat is
+           native or /proc/self/fd allows us to skip a chdir */
+        if(!openat_needs_fchdir()
+            && faccessat(fd_cwd, file, W_OK, AT_EACCESS) == 0)
+            return 0;
+
+        /* This implements #5: */
+        size_t file_name_len = strlen(full_name);
+
+        if(MIN(PATH_MAX, 8192) <= file_name_len)
+            return ! euidaccess_stat(buf, W_OK);
+        if(euidaccess(full_name, W_OK) == 0)
+            return 0;
+        if(errno == EACCES)
+        {
+            errno = 0;
+            return 1;
+        }
+
+        /* Perhaps some other process has removed the file, or perhaps this
+           is a buggy NFS client */
+        return -1;
+    }
+}
+           
+
+/* Prompt whether to remove FILENAME (ent->, if required via a combination of
+   the options specified by X and/or file attributes. If the file may
+   be removed, return RM_OK. If the user declines to remove the file,
+   return RM_USER_DECLINED. If not ignoring missing files and we
+   cannot lstat FILENAME, then return RM_ERROR.
+
+   IS_DIR is true if ENT designates a directory, false otherwise.
+
+   Depending on MODE, ask whether to `descend into' or to `remove' the
+   directory FILENAME. MODE is ignored when FILENAME is not a directory.
+   Set *IS_EMPTY_P to T_YES if FILENAME is an empty directory, and it is
+   appropriate to try to remove it with rmdir (e.g. recursive mode).
+   Don't even try to set *IS_EMPTY_P when MODE == PA_REMOVE_DIR. */
+static enum RM_status
+prompt(FTS* fts, FTSENT* ent, bool is_dir,
+       struct rm_options* x, enum Prompt_action mode,
+       Ternary* is_empty_p)
+{
+    int fd_cwd = fts->fts_cwd_fd;
+    char* full_name = ent->fts_path;
+    char* filename  = ent->fts_accpath;
+    if(is_empty_p)
+        *is_empty_p = T_UNKNOWN;
+
+    struct stat st;
+    struct stat *sbuf = &st;
+    cache_stat_init(sbuf);
+
+    int dirent_type = is_dir ? DT_DIR : DT_UNKNOWN;
+    int write_protected = 0;
+
+    /* When nonzero, this indicates that we failed to remove a child entry,
+       either because the user declined an interactive prompt, or due to
+       some other failure, like permissions */
+    if(ent->fts_number)
+        return RM_USER_DECLINED;
+
+    if(x->interactive == RMI_NEVER)
+        return RM_OK;
+
+    int wp_errno = 0;
+    if(!x->ignore_missing_files
+        && ((x->interactive == RMI_ALWAYS) || x->stdin_tty)
+        && dirent_type != DT_LNK)
+    {
+        write_protected = write_protected_non_symlink(fd_cwd, filename,
+                                                      full_name, sbuf);
+        wp_errno = errno;
+    }
+
+    if(write_protected || x->interactive == RMI_ALWAYS)
+    {
+        if(write_protected >= 0 && dirent_type == DT_UNKNOWN)
+        {
+            if(cache_fstatat(fd_cwd, filename, sbuf, AT_SYMLINK_NOFOLLOW) == 0)
+            {
+                if(S_ISLNK(sbuf->st_mode))
+                    dirent_type = DT_LNK;
+                else if(S_ISDIR(sbuf->st_mode))
+                    dirent_type = DT_DIR;
+                /* Otherwise it doesn't matter, so leave it DT_UNKNOWN */
+            }
+            else
+            {
+                /* This happens, e.g., with `rm '''. */
+                write_protected = -1;
+                wp_errno = errno;
+            }
+        }
+
+        if(write_protected >= 0)
+            switch(dirent_type)
+            {
+                case DT_LNK:
+                    /* Using permissions doesn't make sense for symlinks */
+                    if(x->interactive != RMI_ALWAYS)
+                        return RM_OK;
+                    break;
+                case DT_DIR:
+                    if(!x->recursive)
+                    {
+                        write_protected = -1;
+                        wp_errno = EISDIR;
+                    }
+                    break;
+            }
+
+        char* quoted_name = quote(full_name);
+
+        if(write_protected < 0)
+        {
+            error(0, wp_errno, _("cannot remove %s"), quoted_name);
+            return RM_ERROR;
+        }
+
+        bool is_empty;
+        if(is_empty_p)
+        {
+            is_empty = is_empty_dir(fd_cwd, filename);
+            *is_empty_p = is_empty : T_YES : T_NO;
+        }
+        else
+            is_empty = false;
+
+        /* Issue the prompt */
+        if(dirent_type == DT_DIR
+            && mode == PA_DESCEND_INTO_DIR
+            && !is_empty)
+            fprintf(stderr,
+                    (write_protected
+                     ? _("%s: descend into write_protected directory %s? ")
+                     : _("%s: descend into directory %s? ")),
+                     program_name, quoted_name);
+        else
+        {
+            if(cache_fstatat(fd_cwd, filename, sbuf, AT_SYMLINK_NOFOLLOW) != 0)
+            {
+                error(0, errno, _("cannot remove %s"), quoted_name);
+                return RM_ERROR;
+            }
+
+            fprintf(stderr,
+                    (write_protected
+                     /* TRANSLATORS: You may find it more convenient to
+                        translate "%s: remove %s (write-protected) %s? "
+                        instead. It should avoid grammatical problems
+                        with the output of file_type */
+                     ? _("%s: remove write-protected %s %s? ")
+                     : _("%s: remove %s %s? ")),
+                     program_name, file_type(sbuf), quoted_name);
+        }
+
+        if(!yesno())
+            return RM_USER_DECLINED;
+    }
+    return RM_OK;
+}
+
+
+/* Upon unlink failure, or when the user declines to remove ENT, mark
+   each of its ancestor directories, so that we know not to prompt for
+   its removal */
+static void mark_ancestor_dirs(FTSENT* ent)
+{
+    FTSENT* p;
+    for(p = ent->fts_parent; p->fts_level >= FTS_ROOTLEVEL; p = p->fts_parent)
+    {
+        if(p->fts_number)
+            break;
+        p->fts_number = 1;
+    }
+}
+
+/* Tell fts not to traverse into the hierarchy at ENT */
+static void fts_skip_tree(FTS* fts, FTSENT* ent)
+{
+    fts_set(fts, ent, FTS_SKIP);
+    /* Ensure that we do not process ENT a second time */
+    ent = fts_read(fts);
+}
 
 
 /* This function is called once for every file system object that fts
@@ -29,7 +332,7 @@ rm_fts(FTS* fts, FTSENT* ent, struct rm_options* x)
                    Not recursive, so arrange to skip contents */
                 error(0, EISDIR, _("cannot remove %s"), quote(ent->fts_path));
                 mark_ancestor_dirs(ent);
-                fts_skip_tree(ftd, ent);
+                fts_skip_tree(fts, ent);
                 return RM_ERROR;
             }
 
