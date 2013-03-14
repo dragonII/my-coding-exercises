@@ -63,3 +63,28 @@ bool setup_dir(FTS* fts)
 
     return true;
 }
+
+
+/* Leave a directory during a file tree walk */
+void leave_dir(FTS* fts, FTSENT* ent)
+{
+    struct stat* st = ent->fts_statp;
+    if(fts->fts_options & (FTS_TIGHT_CYCLE_CHECK | FTS_LOGICAL))
+    {
+        struct Active_dir obj;
+        void* found;
+        obj.dev = st->st_dev;
+        obj.ino = st->st_ino;
+        found = hash_delete(fts->fts_cycle.ht, &obj);
+        if(!found)
+            abort();
+        free(found);
+    }
+    else
+    {
+        FTSENT* parent = ent->fts_parent;
+        if(parent != NULL & parent->fts_level >= 0)
+            CYCLE_CHECK_REFLECT_CHDIR_UP(fts->fts_cycle.state,
+                                          *(parent->fts_statp), *st);
+    }
+}
