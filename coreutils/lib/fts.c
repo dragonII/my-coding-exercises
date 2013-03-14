@@ -23,8 +23,17 @@
 # define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
-bool fts_debug = false;
+
+bool fts_debug = true;
 #define Dprintf(x) do { if (fts_debug) printf x; } while(false)
+
+#define LEAVE_DIR(Fts, Ent, Tag)                                \
+    do                                                          \
+    {                                                           \
+        Dprintf(("  %s-leaving: %s\n", Tag, (Ent)->fts_path));  \
+        leave_dir(Fts, Ent);                                    \
+        fd_ring_check(Fts);                                     \
+    } while(false)
 
 #define fts_assert(expr)        \
     do                          \
@@ -47,6 +56,50 @@ enum Fts_stat
     FTS_NO_STAT_REQUIRED = 1,
     FTS_STAT_REQUIRED = 2
 };
+
+
+/* Ensure that each file descriptor on the fd_ring matches a
+   parent, grandparent, etc. of the current working directory */
+static void
+fd_ring_check(FTS* sp)
+{
+    if(!fts_debug)
+        return;
+
+    /* Make a writable copy */
+    I_ring fd_w = sp->fts_fd_ring;
+
+    int cwd_fd = sp->fts_cwd_fd;
+    cwd_fd = dup(cwd_fd);
+    char* dot = getcwdat(cwd_fd, NULL, 0);
+    error(0, 0, "===== check ===== cwd: %s", dot);
+    free(dot);
+    while(! i_ring_empty(&fd_w))
+    {
+        int fd = i_ring_pop(&fd_w);
+        if(fd >= 0)
+        {
+            int parent_fd = openat(cwd_fd, "..", O_RDONLY);
+            if(parent_fd < 0)
+            {
+                break;
+            }
+            if(!same_fd(fd, parent_fd))
+            {
+                char* cwd = getcwdat(fd, NULL, 0);
+                error(0, errno, "ring   : %s", cwd);
+                char* c2 = getcwdat(parent_fd, NULL, 0);
+                error(0, errno, "parent: %s", c2);
+                free(cwd);
+                free(c2);
+                fts_assert(0);
+            }
+            close(cwd_fd);
+            cwd_fd = parent_fd;
+        }
+    }
+    close(cwd_fd);
+}
 
 
 /* fts_set takes the stream as an argument alghough it's not used in this
