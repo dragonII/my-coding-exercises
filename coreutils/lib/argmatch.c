@@ -9,10 +9,28 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #ifndef _
 #define _(msgid) gettext(msgid)
 #endif
+
+
+/* Non failing version of argmatch call this function after failing */
+#ifndef ARGMATCH_DIE
+# include "exitfail.h"
+# define ARGMATCH_DIE exit(exit_failure)
+#endif
+
+static void
+__argmatch_die(void)
+{
+    ARGMATCH_DIE;
+}
+
+/* Used by XARGMATCH and XARGCASEMATCH. See description in argmatch.h.
+   Default to __argmatch_die, but allow caller to change this at run-time. */
+argmatch_exit_fn argmatch_die = __argmatch_die;
 
 /* If ARG is an unambiguous match for an element of the
    NULL-terminated array ARGLIST, return the index in ARGLIST
