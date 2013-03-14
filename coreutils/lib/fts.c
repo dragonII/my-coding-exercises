@@ -23,6 +23,9 @@
 # define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
+bool fts_debug = false;
+#define Dprintf(x) do { if (fts_debug) printf x; } while(false)
+
 #define fts_assert(expr)        \
     do                          \
     {                           \
@@ -437,6 +440,268 @@ mem1:
     free(sp);
     return NULL;
 }
+
+
+FTSENT* fts_read(FTS* sp) 
+{
+    register FTSENT *p, *tmp;
+    register unsigned short int instr;
+    register char* t;
+
+    /* If finished or unrecoverable error, return NULL */
+    if(sp->fts_cur == NULL || ISSET(FTS_STOP))
+        return NULL;
+
+    /* Set current node pointer */
+    p = sp->fts_cur;
+
+    /* Save and zero out user instructions */
+    instr = p->fts_instr;
+    p->fts_instr = FTS_NOINSTR;
+
+    /* Any type of file may be re-visited; re-stat and return */
+    if(instr == FTS_AGAIN)
+    {
+        p->fts_info = fts_stat(sp, p, false);
+        return p;
+    }
+    Dprintf(("fts_read: p=%s\n",
+                p->fts_info == FTS_INIT ? "" : p->fts_path));
+
+    /* Following a symlink -- SLNONE test allows application to see
+       SLNONE and recover. If indirecting through a symlink, have
+       keep a pointer to current location. If unable to get that
+       pointer, follow fails */
+    if(instr == FTS_FOLLOW &&
+        (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE))
+    {
+        p->fts_info = fts_stat(sp, p, true);
+        if(p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR))
+        {
+            if((p->fts_symfd = diropen(sp, ".")) < 0)
+            {
+                p->fts_errno = errno;
+                p->fts_info = FTS_ERR;
+            }
+            else
+                p->fts_flags |= FTS_SYMFOLLOW;
+        }
+        goto check_for_dir;
+    }
+
+    /* Directory in pre-order */
+    if(p->fts_info == FTS_D)
+    {
+        /* If skipped or crossed mount point, do post-order visit */
+        if(instr == FTS_SKIP ||
+            (ISSET(FTS_XDEV) && p->fts_statp->st_dev != sp->fts_dev))
+        {
+            if(p->fts_flags & FTS_SYMFOLLOW)
+                (void)close(p->fts_symfd);
+            if(sp->fts_child)
+            {
+                fts_lfree(sp->fts_child);
+                sp->fts_child = NULL;
+            }
+            p->fts_info = FTS_DP;
+            LEAVE_DIR(sp, p, "1");
+            return p;
+        }
+
+        /* Rebuild if only read the names and now traversing */
+        if(sp->fts_child != NULL && ISSET(FTS_NAMEONLY))
+        {
+            CLR(FTS_NAMEONLY);
+            fts_lfree(sp->fts_child);
+            sp->fts_child = NULL;
+        }
+
+        /* cd to the subdirectory.
+
+           If have already read and now fail to chdir, whack the list
+           to make the names come out right, and set the parent errno
+           so the application will eventually get an error condition.
+           Set the FTS_DONTCHDIR flag so that when we logically change
+           directories back to the parent we don't do chdir.
+
+           If Haven't read do so. If the read fails, fts_build sets
+           FTS_STOP or the fts_info field of the node */
+        if(sp->fts_child != NULL)
+        {
+            if(fts_safe_changedir(sp, p, -1, p->fts_accpath))
+            {
+                p->fts_errno = errno;
+                p->fts_flags |= FTS_DONTCHDIR;
+                for(p = sp->fts_child; p != NULL; p = p->fts_link)
+                    p->fts_accpath = p->fts_parent->fts_accpath;
+            }
+        }
+        else if((sp->fts_child = fts_build(sp, BREAD)) == NULL)
+        {
+            if(ISSET(FTS_STOP))
+                return NULL;
+
+            /* If fts_build's call to fts_safe_changedir failed
+               because it was not able to fchdir into a
+               subdirectory, tell the caller */
+            if(p->fts_errno && p->fts_info != FTS_DNR)
+                p->fts_info = FTS_ERR;
+            LEAVE_DIR(sp, p, "2");
+            return p;
+        }
+        p = sp->fts_child;
+        sp->fts_child = NULL;
+        goto name;
+    }
+    /* Move to the next node on this level */
+next:
+    tmp = p;
+    if((p = p->fts_link) != NULL)
+    {
+        sp->fts_cur = p;
+        free(tmp);
+
+        /* If reached the top, return to the original directory (or
+           the root of the tree), and load the file names for the next
+           root */
+        if(p->fts_level == FTS_ROOTLEVEL)
+        {
+            if(RESTORE_INITIAL_CWD(sp))
+            {
+                SET(FTS_STOP);
+                return NULL;
+            }
+            free_dir(sp);
+            fts_load(sp, p);
+            setup_dir(sp);
+            goto check_for_dir;
+        }
+
+        /* User may have called fts_set on the node. If skipped,
+           ignore. If followed, get a file descriptor so we can
+           get back if necessary */
+        if(p->fts_instr == FTS_SKIP)
+            goto next;
+        if(p->fts_instr == FTS_FOLLOW)
+        {
+            p->fts_info = fts_stat(sp, p, true);
+            if(p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR))
+            {
+                if((p->fts_symfd = diropen(sp, ".")) < 0)
+                {
+                    p->fts_errno = errno;
+                    p->fts_info = FTS_ERR;
+                }
+                else
+                    p->fts_flags |= FTS_SYMFOLLOW;
+            }
+            p->fts_instr = FTS_NOINSTR;
+        }
+name:
+        t = sp->fts_path + NAPPEND(p->fts_parent);
+        *t++ = '/';
+        memmove(t, p->fts_name, p->fts_namelen + 1);
+check_for_dir:
+        sp->fts_cur = p;
+        if(p->fts_info == FTS_NSOK)
+        {
+            if(p->fts_statp->st_size == FTS_STAT_REQUIRED)
+            {
+                FTSENT* parent = p->fts_parent;
+                if(FTS_ROOTLEVEL < p->fts_level
+                    /* ->fts_n_dirs_remaining is not valid
+                       for command-line-specified names */
+                    && parent->fts_n_dirs_remaining == 0
+                    && ISSET(FTS_NOSTAT)
+                    && ISSET(FTS_PHYSICAL)
+                    && link_count_optimize_ok(parent))
+                {
+                    /* nothing more needed */
+                }
+                else
+                {
+                    p->fts_info = fts_stat(sp, p, false);
+                    if(S_ISDIR(p->fts_statp->st_mode)
+                        && p->fts_level != FTS_ROOTLEVEL
+                        && parent->fts_n_dirs_remaining)
+                            parent->fts_n_dirs_remaining--;
+                }
+            }
+            else
+                fts_assert(p->fts_statp->st_size == FTS_NO_STAT_REQUIRED);
+        }
+        if(p->fts_info == FTS_D)
+        {
+            /* Now that P->fts_statp is guaranteed to be valid,
+               if this is a command-line directory, record its
+               device number, to be used for FTS_XDEV */
+            if(p->fts_level == FTS_ROOTLEVEL)
+                sp->fts_dev = p->fts_statp->st_dev;
+            Dprintf(("  entering: %s\n", p->fts_path));
+            if(!enter_dir(sp, p))
+            {
+                __set_errno(ENOMEM);
+                return NULL;
+            }
+        }
+        return p;
+    }
+
+    /* Move up to the parent node */
+    p = tmp->fts_parent;
+    sp->fts_cur = p;
+    free(tmp);
+
+    if(p->fts_level == FTS_ROOTPARENTLEVEL)
+    {
+        /* Done; free everything up and set errno to 0 so the user
+           can distinguish between error and EOF */
+        free(p);
+        __set_errno(0);
+        return (sp->fts_cur = NULL);
+    }
+
+    fts_assert(p->fts_info != FTS_NSOK);
+
+    /* NUL terminate the file name */
+    sp->fts_path[p->fts_pathlen] = '\0';
+
+    /* Return to the parent directory. If at a root node, restore
+       the initial working directory. If we came through a symlink,
+       go back through the file descriptor. Otherwise, move up
+       one level, via ".." */
+    if(p->fts_level == FTS_ROOTLEVEL)
+    {
+        if(RESTORE_INITIAL_CWD(sp))
+        {
+            p->fts_errno = errno;
+            SET(FTS_STOP);
+        }
+    }
+    else if(p->fts_flags & FTS_SYMFOLLOW)
+    {
+        if(FCHDIR(sp, p->fts_symfd))
+        {
+            int saved_errno = errno;
+            (void)close(p->fts_symfd);
+            __set_errno(saved_errno);
+            p->fts_errno = errno;
+            SET(FTS_STOP);
+        }
+        (void)close(p->fts_symfd);
+    }
+    else if(!(p->fts_flags & FTS_DONTCHDIR) &&
+                fts_safe_changedir(sp, p->fts_parent, -1, ".."))
+    {
+        p->fts_errno = errno;
+        SET(FTS_STOP);
+    }
+    p->fts_info = p->fts_errno ? FTS_ERR : FTS_DP;
+    if(p->fts_errno == 0)
+        LEAVE_DIR(sp, p, "3");
+    return ISSET(FTS_STOP) ? NULL : p;
+}
+
 
 
 static void fd_ring_clear(I_ring* fd_ring)
