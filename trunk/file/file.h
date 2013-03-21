@@ -7,6 +7,10 @@
 
 #define ENABLE_CONDITIONALS
 
+#define MAXDESC     64  /* max len of text description/MIME type */
+#define MAXMIME     80  /* max len of text MIME type */
+#define MAXstring   64  /* max len of "string" types */
+
 
 struct magic
 {
