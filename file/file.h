@@ -5,11 +5,45 @@
 
 #include <stdint.h>
 
+#ifndef MIN
+#define MIN(a, b)       (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef MAX
+#define MAX(a, b)       (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef HOWMANY
+#define HOWMANY (256 * 1024)    /* how much of the file to look at */
+#endif
+
+#define MAXMAGIC 8192   /* max entries in any one magic file or directory */
+
 #define ENABLE_CONDITIONALS
 
 #define MAXDESC     64  /* max len of text description/MIME type */
 #define MAXMIME     80  /* max len of text MIME type */
 #define MAXstring   64  /* max len of "string" types */
+
+#define FILE_LOAD       0
+#define FILE_CHECK      1
+#define FILE_COMPILE    2
+#define FILE_LIST       3
+
+union VALUETYPE
+{
+    uint8_t     b;
+    uint16_t    h;
+    uint32_t    l;
+    uint64_t    q;
+    uint8_t     hs[2];      /* 2 bytes of a fixed-endian "short" */
+    uint8_t     hl[4];      /* 4 bytes of a fixed-endian "long"  */
+    uint8_t     hq[8];      /* 8 bytes of a fixed-endian "quad"  */
+    char s[MAXstring];      /* the search string or regex pattern */
+    unsigned char us[MAXstring];
+    float       f;
+    double      d;
+};
 
 
 struct magic
@@ -167,33 +201,19 @@ struct magic
     char mimetype[MAXMIME];     /* MIME type */
     /* Words 53-54 */
     char apple[8];
-}
+};
 
 
 
 /* list of magic entries */
 struct mlist
 {
-    struct magic* magic;        /* array of magic entries */
+    struct magic *magic;        /* array of magic entries */
     uint32_t      nmagic;       /* number of entries in array */
     void* map;                  /* internal resources used by entry */
     struct mlist *next, *prev;
 };
 
-union VALUETYPE
-{
-    uint8_t     b;
-    uint16_t    h;
-    uint32_t    l;
-    uint64_t    q;
-    uint8_t     hs[2];      /* 2 bytes of a fixed-endian "short" */
-    uint8_t     hl[4];      /* 4 bytes of a fixed-endian "long"  */
-    uint8_t     hq[8];      /* 8 bytes of a fixed-endian "quad"  */
-    char s[MAXstring];      /* the search string or regex pattern */
-    unsigned char us[MAXstring];
-    float       f;
-    double      d;
-};
 
 #define MAGIC_SETS 2
 

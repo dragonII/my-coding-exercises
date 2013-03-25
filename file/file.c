@@ -11,6 +11,9 @@
 #include <locale.h>
 #include <string.h>
 
+#include "file.h"
+#include "magic_.h"
+
 static char* progname;       /* used throughout */
 
 static void usage(void);
@@ -20,6 +23,47 @@ static void help(void);
 static int  unwrap(struct magic_set*, const char*);
 static int  process(struct magic_set*, const char*, int);
 static struct magic_set* load(const char*, int);
+
+static int      /* Global command-line options */
+    bflag = 0,  /* brief output format */
+    nopad = 0,  /* don't pad output */
+    nobuffer = 0, /* don't buffer stdout */
+    nulsep = 0;   /* append '\0' to the separator */
+
+static const char* separator = ":";     /* default field separator */
+
+
+static const struct option long_options[] =
+{
+#define OPT(shortname, longname, opt, doc)  \
+    {longname, opt, NULL, shortname},
+#define OPT_LONGONLY(longname, opt, doc)    \
+    {longname, opt, NULL, 0},
+#include "file_opts.h"
+#undef OPT
+#undef OPT_LONGONLY
+    {NULL, 0, NULL, 0}
+};
+#define OPTSTRING       "bcCde:f:F:hiklLm:nNprsvz0"
+
+
+static const struct
+{
+    const char* name;
+    int value;
+} nv[] =
+{
+    {"apptype",     MAGIC_NO_CHECK_APPTYPE},
+    {"ascii",       MAGIC_NO_CHECK_ASCII},
+    {"cdf",         MAGIC_NO_CHECK_CDF},
+    {"compress",    MAGIC_NO_CHECK_COMPRESS},
+    {"elf",         MAGIC_NO_CHECK_ELF},
+    {"encoding",    MAGIC_NO_CHECK_ENCODING},
+    {"soft",        MAGIC_NO_CHECK_SOFT},
+    {"tar",         MAGIC_NO_CHECK_TAR},
+    {"text",        MAGIC_NO_CHECK_TEXT},   /* synonym for ascii */
+    {"tokens",      MAGIC_NO_CHECK_TOKENS}, /* OBSOLETE: ignore for backwards compatibilities */
+};
 
 int main(int argc, char** argv)
 {
@@ -72,7 +116,7 @@ int main(int argc, char** argv)
                 break;
             case 'c':
                 action = FILE_CHECK;
-                breka;
+                break;
             case 'C':
                 action = FILE_COMPILE;
                 break;
