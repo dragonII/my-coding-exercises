@@ -34,10 +34,14 @@
 #define MAXMIME     80  /* max len of text MIME type */
 #define MAXstring   64  /* max len of "string" types */
 
+#define FILE_MAGICSIZE  248
+
 #define FILE_LOAD       0
 #define FILE_CHECK      1
 #define FILE_COMPILE    2
 #define FILE_LIST       3
+
+#define PATHSEP ':'
 
 union VALUETYPE
 {
@@ -223,6 +227,11 @@ struct mlist
     struct mlist *next, *prev;
 };
 
+#ifndef CAST
+#define CAST(T, b)      (T)(b)
+#define RCAST(T, b)     (T)(b)
+#endif
+
 
 #define MAGIC_SETS 2
 
@@ -264,6 +273,7 @@ struct magic_set
 
 int file_apprentice(struct magic_set*, const char*, int);
 
+void file_error(struct magic_set*, int, const char*, ...);
 void file_oomem(struct magic_set*, size_t);
 
 #endif
