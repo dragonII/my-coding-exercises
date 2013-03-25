@@ -4,20 +4,23 @@
 
 CC=cc
 RM=rm
-CFLAGS=-Wall -c -g -D_GNU_SOURCE
+CFLAGS=-Wall -c -g
 LDFLAGS=-g
 INFLAGS=-I../lib
+ECHO=echo
+TARGET=file
 
 SOURCES=$(wildcard *.c)
-OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
+#OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
 OBJECTS=$(subst .c,.o, $(SOURCES))
-OBJ_DIR_BINARIES=$(addprefix $(OBJ_DIR)/,$(subst .c,, $(SOURCES)))
 
-all: $(OBJECTS)
+all: $(OBJECTS) $(TARGET)
 
 %.o: %.c
+	$(CC) $(INFLAGS) $(CFLAGS) $< -o $@
+$(TARGET): $(SOURCES)
 	$(CC) $(INFLAGS) $(CFLAGS) $< -o $@
 
 
 clean:
-	${RM} -f $(OBJECTS) $(OBJ_DIR_BINARIES)
+	${RM} -f $(OBJECTS) $(TARGET)
