@@ -1,12 +1,12 @@
 #include "magic_.h"
 
-#define _GNU_SOURCE
 #include <stdio.h>
 
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <string.h>
 
 static const char*
 get_default_magic(void)
@@ -132,3 +132,5 @@ int magic_check(struct magic_set* ms, const char* magicfile)
         return -1;
     return file_apprentice(ms, magicfile, FILE_CHECK);
 }
+
+

@@ -58,6 +58,7 @@ int magic_check(struct magic_set*, const char*);
 int magic_compile(struct magic_set*, const char*);
 int magic_list(struct magic_set*, const char*);
 int magic_load(struct magic_set*, const char*);
+int file_apprentice(struct magic_set*, const char*, int);
 
 struct magic_set* magic_open(int);
 
