@@ -4,6 +4,7 @@
 #define __file_h__
 
 #include <stdint.h>
+#include <sys/types.h>
 
 #ifndef MIN
 #define MIN(a, b)       (((a) < (b)) ? (a) : (b))
@@ -75,7 +76,7 @@ struct magic
     uint8_t     type;           /* comparison type (FILE_*) */
     uint8_t     in_type;        /* type of indirection */
 
-#define FILE_INVALI     0
+#define FILE_INVALID    0
 #define FILE_BYTE       1
 #define FILE_SHORT      2
 #define FILE_DEFAULT    3
@@ -261,5 +262,8 @@ struct magic_set
 };
 
 
+int file_apprentice(struct magic_set*, const char*, int);
+
+void file_oomem(struct magic_set*, size_t);
 
 #endif

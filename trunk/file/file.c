@@ -1,6 +1,5 @@
 /* main - parse arguments and handle options */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <error.h>
 #include <errno.h>
@@ -10,6 +9,9 @@
 #include <getopt.h>
 #include <locale.h>
 #include <string.h>
+
+#include <stdio.h>
+
 #include <wchar.h>
 
 #include "file.h"
