@@ -47,10 +47,24 @@
 #define MAGIC_NO_CHECK_FORTRAN  0x000000    /* don't check ascii/fortran */
 #define MAGIC_NO_CHECK_TROFF    0x000000    /* don't check ascii/troff */
 
-#define MAGIC_VERSION   "X.YY"    /* This implementation */
-#define VERSION         "X.YY"   
+#define MAGIC_VERSION       513  
+#define VERSION             "513"
 
 
+#include "file.h"
 
+int magic_version(void);
+int magic_check(struct magic_set*, const char*);
+int magic_compile(struct magic_set*, const char*);
+int magic_list(struct magic_set*, const char*);
+int magic_load(struct magic_set*, const char*);
+
+struct magic_set* magic_open(int);
+
+const char* magic_file(struct magic_set*, const char*);
+const char* magic_error(struct magic_set*);
+const char* magic_getpath(const char*, int);
+
+void magic_close(struct magic_set*);
 
 #endif

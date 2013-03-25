@@ -13,6 +13,10 @@
 #define MAX(a, b)       (((a) > (b)) ? (a) : (b))
 #endif
 
+#ifndef __arraycount
+#define __arraycount(a) (sizeof(a) / sizeof(a[0]))
+#endif
+
 #ifndef HOWMANY
 #define HOWMANY (256 * 1024)    /* how much of the file to look at */
 #endif
@@ -20,6 +24,10 @@
 #define MAXMAGIC 8192   /* max entries in any one magic file or directory */
 
 #define ENABLE_CONDITIONALS
+
+#ifndef MAGIC
+#define MAGIC "/etc/magic"
+#endif
 
 #define MAXDESC     64  /* max len of text description/MIME type */
 #define MAXMIME     80  /* max len of text MIME type */

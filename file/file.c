@@ -10,6 +10,7 @@
 #include <getopt.h>
 #include <locale.h>
 #include <string.h>
+#include <wchar.h>
 
 #include "file.h"
 #include "magic_.h"
@@ -23,6 +24,22 @@ static void help(void);
 static int  unwrap(struct magic_set*, const char*);
 static int  process(struct magic_set*, const char*, int);
 static struct magic_set* load(const char*, int);
+
+static size_t file_mbswidth(const char* s);
+
+#ifdef S_IFLNK
+#define FILE_FLAGS "-bchikLlNnprsvz0"
+#else
+#define FILE_FLAGS "-bciklNnprsvz0"
+#endif
+
+#define USAGE       \
+    "Usage: %s [" FILE_FLAGS \
+    "] [--apple] [--mime-encoding] [--mime-type]\n" \
+    "            [-e testname] [-F separator] [-f namefile] [-m magicfiles] "   \
+    "file ...\n"    \
+    "       %s -C [-m magicfiles]\n"    \
+    "       %s [--help]\n"
 
 static int      /* Global command-line options */
     bflag = 0,  /* brief output format */
@@ -65,6 +82,44 @@ static const struct
     {"tokens",      MAGIC_NO_CHECK_TOKENS}, /* OBSOLETE: ignore for backwards compatibilities */
 };
 
+static void
+usage(void)
+{
+    (void)fprintf(stderr, USAGE, progname, progname, progname);
+    exit(1);
+}
+
+
+static size_t file_mbswidth(const char* s)
+{
+    size_t bytesconsumed, old_n, n, width = 0;
+    mbstate_t state;
+    wchar_t nextchar;
+    (void)memset(&state, 0, sizeof(mbstate_t));
+    old_n = n = strlen(s);
+
+    while(n > 0)
+    {
+        bytesconsumed = mbrtowc(&nextchar, s, n, &state);
+        if(bytesconsumed == (size_t)(-1) ||
+           bytesconsumed == (size_t)(-1))
+        {
+            /* Something went wrong, return something reasonable */
+            return old_n;
+        }
+        if(s[0] == '\n')
+        {
+            /* Do what strlen() would do, so that caller
+               is always right */
+            width++;
+        } else
+            width += wcwidth(nextchar);
+
+        s += bytesconsumed, n -= bytesconsumed;
+    }
+    return width;
+}
+
 int main(int argc, char** argv)
 {
     int c;
@@ -73,7 +128,7 @@ int main(int argc, char** argv)
     int flags = 0, e = 0;
     struct magic_set* magic = NULL;
     int longindex;
-    char* magicfile = NULL;
+    const char* magicfile = NULL;
 
     /* makes islower etc work for other langs */
     (void)setlocale(LC_CTYPE, "");
@@ -211,7 +266,7 @@ int main(int argc, char** argv)
         case FILE_LIST:
             /* Don't try to check/compile ~/.magic unless we explicitly
                ask for it */
-            magic = magic_open(flags[MAGIC_CHECK]);
+            magic = magic_open(flags | MAGIC_CHECK);
             if(magic == NULL)
             {
                 (void)fprintf(stderr, "%s: %s\n", progname,
@@ -277,3 +332,157 @@ int main(int argc, char** argv)
 }
 
 
+static struct magic_set*
+load(const char* magicfile, int flags)
+{
+    struct magic_set* magic = magic_open(flags);
+    if(magic == NULL)
+    {
+        (void)fprintf(stderr, "%s: %s\n", progname, strerror(errno));
+        return NULL;
+    }
+    if(magic_load(magic, magicfile) == -1)
+    {
+        (void)fprintf(stderr, "%s: %s\n",
+                    progname, magic_error(magic));
+        magic_close(magic);
+        return NULL;
+    }
+    return magic;
+}
+
+
+/* unwrap -- read a file of filenames, do each one */
+static int
+unwrap(struct magic_set* ms, const char* fn)
+{
+    FILE* f;
+    size_t len;
+    char* line = NULL;
+    size_t llen = 0;
+    int wid = 0, cwid;
+    int e = 0;
+
+    if(strcmp("-", fn) == 0)
+    {
+        f = stdin;
+        wid = 1;
+    } else
+    {
+        if((f = fopen(fn, "r")) == NULL)
+        {
+            (void)fprintf(stderr, "%s: Cannot open `%s' (%s).\n",
+                            progname, fn, strerror(errno));
+            return 1;
+        }
+
+        while((len = getline(&line, &llen, f)) > 0)
+        {
+            if(line[len - 1] == '\n')
+                line[len - 1] = '\0';
+            cwid = file_mbswidth(line);
+            if(cwid > wid)
+                wid = cwid;
+        }
+
+        rewind(f);
+    }
+
+    while((len = getline(&line, &llen, f)) > 0)
+    {
+        if(line[len - 1] == '\n')
+            line[len - 1] = '\0';
+        e |= process(ms, line, wid);
+        if(nobuffer)
+            (void)fflush(stdout);
+    }
+
+    free(line);
+    (void)fclose(f);
+    return e;
+}
+
+
+/* Called for each input file on the command line (or in a list of files) */
+static int
+process(struct magic_set* ms, const char* inname, int wid)
+{
+    const char* type;
+    int std_in = strcmp(inname, "-") == 0;
+
+    if(wid > 0 && !bflag)
+    {
+        (void)printf("%s", std_in ? "/dev/stdin" : inname);
+        if(nulsep)
+            (void)putc('\0', stdout);
+        (void)printf("%s", separator);
+        (void)printf("%*s ",
+                (int)(nopad ? 0 : (wid - file_mbswidth(inname))), "");
+    }
+
+    type = magic_file(ms, std_in ? NULL : inname);
+    if(type == NULL)
+    {
+        (void)printf("ERROR: %s\n", magic_error(ms));
+        return 1;
+    } else
+    {
+        (void)printf("%s\n", type);
+        return 0;
+    }
+}
+
+
+static void
+help(void)
+{
+    (void)fputs(
+"Usage: file [OPTION...] [FILE...]\n"
+"Determine type of FILEs.\n"
+"\n", stdout);
+#define OPT(shortname, longname, opt, doc)      \
+    fprintf(stdout, "   -%c, --" longname, shortname),  \
+    docprint(doc);
+#define OPT_LONGONLY(longname, opt, doc)    \
+    fprintf(stdout, "        --" longname), \
+    docprint(doc);
+#include "file_opts.h"
+#undef OPT
+#undef OPT_LONGONLY
+    fprintf(stdout, "\nReport bugs to http://xxx.xxx.xxx\n");
+    exit(0);
+}
+
+
+static void
+docprint(const char* opts)
+{
+    size_t i;
+    int comma;
+    char *sp, *p;
+
+    p = strstr(opts, "%o");
+    if(p == NULL)
+    {
+        fprintf(stdout, "%s", opts);
+        return;
+    }
+
+    for(sp = p - 1; sp > opts && *sp == ' '; sp--)
+        continue;
+
+    fprintf(stdout, "%.*s", (int)(p - opts), opts);
+
+    comma = 0;
+    for(i = 0; i < __arraycount(nv); i++)
+    {
+        fprintf(stdout, "%s%s", comma++ ? ", " : "", nv[i].name);
+        if(i && i % 5 == 0)
+        {
+            fprintf(stdout, ",\n%*s", (int)(p - sp - 1), "");
+            comma = 0;
+        }
+    }
+
+    fprintf(stdout, "%s", opts + (p - opts) + 2);
+}
