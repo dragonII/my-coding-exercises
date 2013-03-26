@@ -11,7 +11,14 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
+#include <ctype.h>
 
+
+#define EATAB {while (isascii((unsigned char) *l) && \
+                isspace((unsigned char) *l)) ++l; }
+
+
+#define ALLOC_CHUNK (size_t)10
 
 int file_formats[FILE_NAMES_SIZE];
 const char* file_names[FILE_NAMES_SIZE];
@@ -126,6 +133,120 @@ static const struct type_tbl_s type_tbl[] =
     { XX_NULL,          FILE_INVALID,       FILE_FMT_NONE },
 };
 
+/* There are not types, and cannot be preceded by "u" to make them
+   unsigned */
+static const struct type_tbl_s special_tbl[] =
+{
+    { XX("name"),   FILE_NAME,     FILE_FMT_STR },
+    { XX("use"),    FILE_USE,      FILE_FMT_STR },
+    { XX_NULL,      FILE_INVALID,  FILE_FMT_NONE },
+};
+#undef XX
+#undef XX_NULL
+
+static int 
+get_type(const struct type_tbl_s* tbl, const char* l, const char** t)
+{
+    const struct type_tbl_s* p;
+    for(p = tbl; p->len; p++)
+    {
+        if(strncmp(l, p->name, p->len) == 0)
+        {
+            if(t)
+                *t = l + p->len;
+            break;
+        }
+    }
+    return p->type;
+}
+
+
+static int
+get_standard_integer_type(const char* l, const char** t)
+{
+    int type;
+
+    if(isalpha((unsigned char)l[1]))
+    {
+        switch(l[1])
+        {
+            case 'C':
+                /* "dC" and "uC" */
+                type = FILE_BYTE;
+                break;
+            case 'S':
+                /* "dS" and "uS" */
+                type = FILE_SHORT;
+                break;
+            case 'I':
+            case 'L':
+                /* "dI", "dL", "uI", and "uL" */
+                
+                /* The actual Single UNIX Specification says
+                   that "L" means "long", as in the C data type,
+                   but we treat it as meaning "4-type integer".
+                   Given that the OS X version of file 5.04 did
+                   the same, I guess that passes the actual SUS
+                   validation suite; having "dL" be dependent on
+                   how big a "long" is on the machine running
+                   "file" is silly */
+                type = FILE_LONG;
+                break;
+            case 'Q':
+                /* "dQ" and "uQ" */
+                type = FILE_QUAD;
+                break;
+            default:
+                /* "d{anything else}", "u{anything else}" */
+                return FILE_INVALID;
+        }
+        l += 2;
+    } else if(isdigit((unsigned char)l[1]))
+    {
+        /* "d{num}" and "u{num}"; we only support {num} values
+           of 1, 2, 4, and 8 - the Single UNIX Specification
+           doesn't say anything about whether arbitrary
+           values should be supported, but both the Solaris 10
+           and OS X Mountain Lion versions of file passed the
+           Single UNIX Specification validation suite, and
+           neither of them support values bigger than 8 or
+           non-power-of-2 values */
+        if(isdigit((unsigned char)l[2]))
+        {
+            /* Multi-digit, so > 9 */
+            return FILE_INVALID;
+        }
+        switch(l[1])
+        {
+            case '1':
+                type = FILE_BYTE;
+                break;
+            case '2':
+                type = FILE_SHORT;
+                break;
+            case '4':
+                type = FILE_LONG;
+                break;
+            case '8':
+                type = FILE_QUAD;
+                break;
+            default:
+                return FILE_INVALID;
+        }
+        l += 2;
+    } else
+    {
+        /* "d" or "u" by itself */
+        type = FILE_LONG;
+        ++l;
+    }
+    if(t)
+        *t = l;
+
+    return type;
+}
+
+
 static void
 init_file_tables(void)
 {
@@ -153,6 +274,112 @@ cmpstrp(const void* p1, const void* p2)
 {
     return strcmp(*(char* const*)p1, *(char* const*)p2);
 }
+
+
+static int get_op(char c)
+{
+    switch(c)
+    {
+        case '&':
+            return FILE_OPAND;
+        case '|':
+            return FILE_OPOR;
+        case '^':
+            return FILE_OPXOR;
+        case '-':
+            return FILE_OPMINUS;
+        case '+':
+            return FILE_OPADD;
+        case '*':
+            return FILE_OPMULTIPLY;
+        case '/':
+            return FILE_OPDIVIDE;
+        case '%':
+            return FILE_OPMODULO;
+        default:
+            return -1;
+    }
+}
+
+
+#ifdef ENABLE_CONDITIONALS
+static int
+get_cond(const char* l, const char** t)
+{
+    static const struct cond_tbl_s
+    {
+        char name[8];
+        size_t len;
+        int cond;
+    } cond_tbl[] =
+    {
+        {"if",      2,  COND_IF},
+        {"elif",    4,  COND_ELIF},
+        {"else",    4,  COND_ELSE},
+        {"",        0,  COND_NONE},
+    };
+
+    const struct cond_tbl_s* p;
+    for(p = cond_tbl; p->len; p++)
+    {
+        if(strncmp(l, p->name, p->len) == 0 &&
+            isspace((unsigned char)l[p->len]))
+        {
+            if(t)
+                *t = l + p->len;
+            break;
+        }
+    }
+    return p->cond;
+}
+
+
+static int check_cond(struct magic_set* ms, int cond, uint32_t cont_level)
+{
+    int last_cond;
+    last_cond = ms->c.li[cont_level].last_cond;
+
+    switch(cond)
+    {
+        case COND_IF:
+            if(last_cond != COND_NONE && last_cond != COND_ELIF)
+            {
+                if(ms->flags & MAGIC_SETS)
+                    file_magwarn(ms, "syntax error: `if'");
+                return -1;
+            }
+            last_cond = COND_IF;
+            break;
+        
+        case COND_ELIF:
+            if(last_cond != COND_IF && last_cond != COND_ELIF)
+            {
+                if(ms->flags & MAGIC_CHECK)
+                    file_magwarn(ms, "syntax error: `elif'");
+                return -1;
+            }
+            last_cond = COND_ELIF;
+            break;
+
+        case COND_ELSE:
+            if(last_cond != COND_IF && last_cond != COND_ELIF)
+            {
+                if(ms->flags & MAGIC_CHECK)
+                    file_magwarn(ms, "syntax error: `else'");
+                return -1;
+            }
+            last_cond = COND_NONE;
+            break;
+
+        case COND_NONE:
+            last_cond = COND_NONE;
+            break;
+    }
+
+    ms->c.li[cont_level].last_cond = last_cond;
+    return 0;
+}
+#endif
 
 
 /* parse one line from magic file, put into magic[index++] if valid */
@@ -242,7 +469,7 @@ parse(struct magic_set* ms, struct magic_entry* me, const char* line,
     {
         /* m->cont_level == 0 checked below */
         ++l;    /* step over */
-        m->flags |= OFFADD;
+        m->flag |= OFFADD;
     }
     if(*l == '(')
     {
@@ -331,6 +558,308 @@ parse(struct magic_set* ms, struct magic_entry* me, const char* line,
         }
 
         m->in_op = 0;
+        if(*l == '~')
+        {
+            m->in_op |= FILE_OPINVERSE;
+            l++;
+        }
+        if((op = get_op(*l)) != -1)
+        {
+            m->in_op |= op;
+            l++;
+        }
+        if(*l == '(')
+        {
+            m->in_op |= FILE_OPINDIRECT;
+            l++;
+        }
+
+        if(isdigit((unsigned char)*l) || *l == '-')
+        {
+            m->in_offset = (int32_t)strtol(l, &t, 0);
+            if(l == t)
+                if(ms->flags & MAGIC_CHECK)
+                    file_magwarn(ms, "in_offset `%s' invalid", l);
+            l = t;
+        }
+        if(*l++ != ')' ||
+             ((m->in_op & FILE_OPINDIRECT) && *l++ != ')'))
+            if(ms->flags & MAGIC_CHECK)
+                file_magwarn(ms, "missing ')' in indirect offset");
+    }
+    EATAB;
+
+#ifdef ENABLE_CONDITIONALS
+    m->cond = get_cond(l, &l);
+    if(check_cond(ms, m->cond, cont_level) == -1)
+        return -1;
+    EATAB;
+#endif
+
+    /* Parse the type */
+    if(*l == 'u')
+    {
+        /* Try it as a keyword type prefixed by "u"; match what
+           follows the "u". If that fails, try it as an SUS
+           integer type. */
+        m->type = get_type(type_tbl, l + 1, &l);
+        if(m->type == FILE_INVALID)
+        {
+            /* Not a keyword type; parse it as an SUS type,
+               'u' possibly followed by a number or C/S/L */
+            m->type = get_standard_integer_type(l, &l);
+        }
+
+        /* It's unsigned */
+        if(m->type != FILE_INVALID)
+            m->flag |= UNSIGNED;
+    } else 
+    {
+        /* Try it as a keyword type. If that fails, try it as
+           an SUS integer type if it begins with "d" or as an
+           SUS string type if it begins with "s". In any case,
+           it's not unsigned */
+        m->type = get_type(type_tbl, l, &l);
+        if(m->type == FILE_INVALID)
+        {
+            /* Not a keyword type; parse it as an SUS type,
+               either 'd' possibly followed by a number or
+               C/S/L, or just 's' */
+            if(*l == 'd')
+                m->type = get_standard_integer_type(l, &l);
+            else if(*l == 's' && !isalpha((unsigned char)l[1]))
+            {
+                m->type = FILE_STRING;
+                ++l;
+            }
+        }
+    }
+
+    if(m->type == FILE_INVALID)
+    {
+        /* Not found - try it as a special keyword */
+        m->type = get_type(special_tbl, l, &l);
+    }
+
+    if(m->type == FILE_INVALID)
+    {
+        if(ms->flags & MAGIC_CHECK)
+            file_magwarn(ms, "type `%s' invalid", l);
+        return -1;
+    }
+
+    /* New-style anding: "0 byte&0x80 =0x80 dynamically linked */
+
+    m->mask_op = 0;
+    if(*l == '~')
+    {
+        if(!IS_STRING(m->type))
+            m->mask_op |= FILE_OPINVERSE;
+        else if(ms->flags & MAGIC_CHECK)
+            file_magwarn(ms, "'~' invalid for string type");
+        ++l;
+    }
+    m->str_range = 0;
+    m->str_flags = m->type == FILE_PSTRING ? PSTRING_1_LE : 0;
+    if((op = get_op(*l)) != -1)
+    {
+        if(!IS_STRING(m->type))
+        {
+            uint64_t val;
+            ++l;
+            m->mask_op |= op;
+            val = (uint64_t)strtoull(l, &t, 0);
+            l = t;
+            m->num_mask = file_signextend(ms, m, val);
+            eatsize(&l);
+        }
+        else if(op == FILE_OPDIVIDE)
+        {
+            int have_range = 0;
+            while(!isspace((unsigned char)*++l))
+            {
+                switch(*l)
+                {
+                    case '0': case '1': case '2':
+                    case '3': case '4': case '5':
+                    case '6': case '7': case '8':
+                    case '9':
+                        if(have_range &&
+                            (ms->flags & MAGIC_CHECK))
+                            file_magwarn(ms, "multiple ranges");
+                        have_range = 1;
+                        m->str_range = CAST(uint32_t,
+                                        strtoul(l, &t, 0));
+                        if(m->str_range == 0)
+                            file_magwarn(ms, "zero range");
+                        l = t - 1;
+                        break;
+                    case CHAR_COMPACT_WHITESPACE:
+                        m->str_flags |= STRING_COMPACT_WHITESPACE;
+                        break;
+                    case CHAR_COMPACT_OPTIONAL_WHITESPACE:
+                        m->str_flags |= STRING_COMPACT_OPTIONAL_WHITESPACE;
+                        break;
+                    case CHAR_IGNORE_LOWERCASE:
+                        m->str_flags |= STRING_IGNORE_LOWERCASE;
+                        break;
+                    case CHAR_IGNORE_UPPERCASE:
+                        m->str_flags |= STRING_IGNORE_UPPERCASE;
+                        break;
+                    case CHAR_REGEX_OFFSET_START:
+                        m->str_flags |= REGEX_OFFSET_START;
+                        break;
+                    case CHAR_BINTEST:
+                        m->str_flags |= STRING_BINTEST;
+                        break;
+                    case CHAR_TEXTTEST:
+                        m->str_flags |= STRING_TEXTTEST;
+                        break;
+                    case CHAR_TRIM:
+                        m->str_flags |= STRING_TRIM;
+                        break;
+                    case CHAR_PSTRING_1_LE:
+                        if(m->type != FILE_PSTRING)
+                            goto bad;
+                        m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_1_LE;
+                        break;
+                    case CHAR_PSTRING_2_BE:
+                        if(m->type != FILE_PSTRING)
+                            goto bad;
+                        m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_2_BE;
+                        break;
+                    case CHAR_PSTRING_2_LE:
+                        if(m->type != FILE_PSTRING)
+                            goto bad;
+                        m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_2_LE;
+                        break;
+                    case CHAR_PSTRING_4_BE:
+                        if(m->type != FILE_PSTRING)
+                            goto bad;
+                        m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_4_BE;
+                        break;
+                    case CHAR_PSTRING_4_LE:
+                        if(m->type != FILE_PSTRING)
+                            goto bad;
+                        m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_4_LE;
+                        break;
+                    case CHAR_PSTRING_LENGTH_INCLUDES_ITSELF:
+                        if(m->type != FILE_PSTRING)
+                            goto bad;
+                        m->str_flags |= PSTRING_LENGTH_INCLUDES_ITSELF;
+                        break;
+                    default:
+                    bad:
+                        if(ms->flags & MAGIC_CHECK)
+                            file_magwarn(ms,
+                                    "string extension `%c' "
+                                    "invalid", *l);
+                        return -1;
+                }
+
+                /* Allow multiple '/' for readability */
+                if(l[1] == '/' &&
+                    !isspace((unsigned char)l[2]))
+                    l++;
+            }
+            if(string_modifier_check(ms, m) == -1)
+                return -1;
+        } else
+        {
+            if(ms->flags & MAGIC_CHECK)
+                file_magwarn(ms, "invalid string op: %c", *t);
+            return -1;
+        }
+    }
+
+    /* We used to set mask to all 1's here, instead let's just not do
+       anything if mask = 0 (unless you have a better idea) */
+    EATAB;
+
+    switch(*l)
+    {
+        case '>':
+        case '<':
+            m->reln = *l;
+            ++l;
+            if(*l == '=')
+            {
+                if(ms->flags & MAGIC_CHECK)
+                {
+                    file_magwarn(ms, "%c= not supported", m->reln);
+                    return -1;
+                }
+                ++l;
+            }
+            break;
+        /* Old-style anding: "0 byte &0x80 dynamically linked */
+        case '&':
+        case '^':
+        case '=':
+            m->reln = *l;
+            ++l;
+            if(*l == '=')
+            {
+                /* HP compat: ignore &= etc */
+                ++l;
+            }
+            break;
+        case '!':
+            m->reln = *l;
+            ++l;
+            break;
+        default:
+            m->reln = '='; /* the default relation */
+            if(*l == 'x' && ((isascii(unsigned char)l[1]) &&
+                isspace((unsigned char)l[1]) || !l[1]))
+            {
+                m->reln = *l;
+                ++l;
+            }
+            break;
+    }
+
+    /* Grab the value part, except for an 'x' reln */
+    if(m->reln != 'x' && getvalue(ms, m, &l, action))
+        return -1;
+
+    /* Now get last part - the description */
+    EATAB;
+
+    if(l[0] == '\b')
+    {
+        ++l;
+        m->flags |= NOSPACE;
+    } else if((l[0] == '\\') && (l[1] == 'b'))
+    {
+        ++l;
+        ++l;
+        m->flag |= NOSPACE;
+    }
+    for(i = 0; (m->desc[i++] = *l++) != '\0' && i < sizeof(m->desc); )
+        continue;
+    if(i == sizeof(m->desc))
+    {
+        m->desc[sizeof(m->desc) - 1] = '\0';
+        if(ms->flags & MAGIC_CHECK)
+            file_magwarn(ms, "description `%s' truncated", m->desc);
+    }
+
+    /* We only do this check while compiling, or if any of the magic
+       files were not compiled */
+    if(ms->flags & MAGIC_CHECK)
+    {
+        if(check_format(ms, m) == -1)
+            return -1;
+    }
+
+    if(action == FILE_CHECK)
+        file_mdump(m);
+
+    m->mimetype[0] = '\0';      /* initialize MIME type to none */
+    return 0;
+}
+
 
 
 
