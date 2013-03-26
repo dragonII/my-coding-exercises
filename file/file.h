@@ -36,6 +36,8 @@
 
 #define FILE_MAGICSIZE  248
 
+#define INT64_T_FORMAT "ll"
+
 #define FILE_LOAD       0
 #define FILE_CHECK      1
 #define FILE_COMPILE    2
@@ -317,14 +319,18 @@ struct magic_set
     union VALUETYPE ms_value;               /* either number or string */
 };
 
+/* Type for Unicode characters */
+typedef unsigned long unichar;
 
 int file_apprentice(struct magic_set*, const char*, int);
 int file_check_mem(struct magic_set*, unsigned int);
+int file_looks_utf8(const unsigned char*, size_t,
+                    unichar*, size_t*);
 
 void file_error(struct magic_set*, int, const char*, ...);
 void file_oomem(struct magic_set*, size_t);
 void file_magerror(struct magic_set*, const char*, ...);
 void file_magwarn(struct magic_set*, const char*, ...);
-
+void file_mdump(struct magic*);
 
 #endif
