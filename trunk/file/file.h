@@ -18,6 +18,10 @@
 #define __arraycount(a) (sizeof(a) / sizeof(a[0]))
 #endif
 
+#ifndef O_BINARY
+#define O_BINARY    0
+#endif
+
 #ifndef HOWMANY
 #define HOWMANY (256 * 1024)    /* how much of the file to look at */
 #endif
@@ -34,9 +38,12 @@
 #define MAXMIME     80  /* max len of text MIME type */
 #define MAXstring   64  /* max len of "string" types */
 
+#define MAGICNO     0xF11E041C
+#define VERSIONNO   10
 #define FILE_MAGICSIZE  248
 
 #define INT64_T_FORMAT "ll"
+#define SIZE_T_FORMAT  "z"
 
 #define FILE_LOAD       0
 #define FILE_CHECK      1
@@ -44,6 +51,11 @@
 #define FILE_LIST       3
 
 #define PATHSEP ':'
+
+#ifndef COMPILE_ONLY
+extern const char* file_names[];
+extern const size_t file_nnames;
+#endif
 
 union VALUETYPE
 {
@@ -326,11 +338,16 @@ int file_apprentice(struct magic_set*, const char*, int);
 int file_check_mem(struct magic_set*, unsigned int);
 int file_looks_utf8(const unsigned char*, size_t,
                     unichar*, size_t*);
+int magic_setflags(struct magic_set*, int);
+int file_reset(struct magic_set*);
 
 void file_error(struct magic_set*, int, const char*, ...);
 void file_oomem(struct magic_set*, size_t);
 void file_magerror(struct magic_set*, const char*, ...);
 void file_magwarn(struct magic_set*, const char*, ...);
 void file_mdump(struct magic*);
+void file_ms_free(struct magic_set*);
+
+struct magic_set* file_ms_alloc(int);
 
 #endif
