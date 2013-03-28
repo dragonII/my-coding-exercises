@@ -1,6 +1,6 @@
 /* encoding -- determine the character encoding of a text file */
 
-#include "file.h"
+#include "file_.h"
 
 #include <unistd.h>
 #include <stdlib.h>
