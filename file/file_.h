@@ -6,6 +6,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdio.h>
+#include <time.h>
+
+#include "cdf.h"
 
 #ifndef MIN
 #define MIN(a, b)       (((a) < (b)) ? (a) : (b))
@@ -335,6 +339,9 @@ struct magic_set
 /* Type for Unicode characters */
 typedef unsigned long unichar;
 
+#define FILE_T_LOCAL    1
+#define FILE_T_WINDOWS  2
+
 int file_apprentice(struct magic_set*, const char*, int);
 int file_check_mem(struct magic_set*, unsigned int);
 int file_looks_utf8(const unsigned char*, size_t,
@@ -343,14 +350,16 @@ int magic_setflags(struct magic_set*, int);
 int file_reset(struct magic_set*);
 int file_fsmagic(struct magic_set*, const char*, struct stat*);
 int file_buffer(struct magic_set*, int, const char*, const void*, size_t);
+int file_printf(struct magic_set*, const char*, ...);
+int file_is_tar(struct magic_set*, const unsigned char*, size_t);
 
-int  file_printf(struct magic_set*, const char*, ...);
 void file_error(struct magic_set*, int, const char*, ...);
 void file_oomem(struct magic_set*, size_t);
 void file_magerror(struct magic_set*, const char*, ...);
 void file_magwarn(struct magic_set*, const char*, ...);
 void file_mdump(struct magic*);
 void file_ms_free(struct magic_set*);
+void file_showstr(FILE*, const char*, size_t);
 
 struct magic_set* file_ms_alloc(int);
 
@@ -365,6 +374,11 @@ int file_encoding(struct magic_set* ms, const unsigned char* buf,
                   size_t nbytes, unichar** ubuf, size_t* ulen, 
                   const char** code, const char** code_mime,
                   const char** type);
+
+int cdf_timestamp_to_timespec(struct timespec*, cdf_timestamp_t);
+
+int file_zmagic(struct magic_set* ms, int fd, const char* name,
+                const unsigned char* buf, size_t nbytes);
 
 
 #endif

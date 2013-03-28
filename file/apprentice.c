@@ -4,7 +4,6 @@
 #include "file.h"
 #include "magic_.h"
 
-#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <sys/mman.h>
@@ -17,6 +16,8 @@
 #include <errno.h>
 #include <ctype.h>
 
+//#define _ISOC99_SOURCE
+#include <stdlib.h>
 
 #define EATAB {while (isascii((unsigned char) *l) && \
                 isspace((unsigned char) *l)) ++l; }
@@ -2827,4 +2828,60 @@ void file_ms_free(struct magic_set* ms)
     free(ms->o.buf);
     free(ms->c.li);
     free(ms);
+}
+
+
+/* Print a string containing C character escapes */
+void file_showstr(FILE* fp, const char* s, size_t len)
+{
+    char c;
+
+    for(;;)
+    {
+        if(len == ~0U)
+        {
+            c = *s++;
+            if(c == '\0')
+                break;
+        }
+        else
+        {
+            if(len-- == 0)
+                break;
+            c = *s++;
+        }
+        if(c >= 040 && c <= 0176)   /* isprint && !iscntrl */
+            (void)fputc(c, fp);
+        else
+        {
+            (void)fputc('\\', fp);
+            switch(c)
+            {
+                case '\a':
+                    fputc('a', fp);
+                    break;
+                case '\b':
+                    fputc('b', fp);
+                    break;
+                case '\f':
+                    fputc('f', fp);
+                    break;
+                case '\n':
+                    fputc('n', fp);
+                    break;
+                case '\r':
+                    fputc('r', fp);
+                    break;
+                case '\t':
+                    fputc('t', fp);
+                    break;
+                case '\v':
+                    fputc('v', fp);
+                    break;
+                default:
+                    fprintf(fp, "%.3o", c & 0377);
+                    break;
+            }
+        }
+    }
 }
