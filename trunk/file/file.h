@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #ifndef MIN
 #define MIN(a, b)       (((a) < (b)) ? (a) : (b))
@@ -340,7 +341,10 @@ int file_looks_utf8(const unsigned char*, size_t,
                     unichar*, size_t*);
 int magic_setflags(struct magic_set*, int);
 int file_reset(struct magic_set*);
+int file_fsmagic(struct magic_set*, const char*, struct stat*);
+int file_buffer(struct magic_set*, int, const char*, const void*, size_t);
 
+int  file_printf(struct magic_set*, const char*, ...);
 void file_error(struct magic_set*, int, const char*, ...);
 void file_oomem(struct magic_set*, size_t);
 void file_magerror(struct magic_set*, const char*, ...);
@@ -349,5 +353,18 @@ void file_mdump(struct magic*);
 void file_ms_free(struct magic_set*);
 
 struct magic_set* file_ms_alloc(int);
+
+
+size_t strlcpy(char* dst, const char* src, size_t siz);
+size_t strlcat(char* dst, const char* src, size_t siz);
+
+
+ssize_t sread(int, void*, size_t, int __attribute__((__unused__)));
+
+int file_encoding(struct magic_set* ms, const unsigned char* buf, 
+                  size_t nbytes, unichar** ubuf, size_t* ulen, 
+                  const char** code, const char** code_mime,
+                  const char** type);
+
 
 #endif

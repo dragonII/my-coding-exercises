@@ -8,6 +8,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <errno.h>
+
+#ifndef PIPE_BUF
+#define PIPE_BUF 512
+#endif
 
 static const char*
 get_default_magic(void)
@@ -107,6 +112,24 @@ void magic_close(struct magic_set* ms)
     if(ms == NULL)
         return;
     file_ms_free(ms);
+}
+
+static int
+unreadable_info(struct magic_set* ms, mode_t md, const char* file)
+{
+    /* we cannot open it, but we were able to stat it */
+    if(access(file, W_OK) == 0)
+        if(file_printf(ms, "writable, ") == -1)
+            return -1;
+    if(access(file, X_OK) == 0)
+        if(file_printf(ms, "executable, ") == -1)
+            return -1;
+    if(S_ISREG(md))
+        if(file_printf(ms, "regular file, ") == -1)
+            return -1;
+    if(file_printf(ms, "no read permission") == -1)
+        return -1;
+    return 0;
 }
 
 
