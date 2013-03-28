@@ -1,5 +1,6 @@
 #include "file_.h"
 #include "cdf.h"
+#include "magic_.h"
 
 
 int file_trycdf(struct magic_set *ms, int fd, const unsigned char *buf,

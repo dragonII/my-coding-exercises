@@ -35,5 +35,9 @@ union record
     } header;
 };
 
+/* The magic field is filled with this if uname and gname are valid */
+#define TMAGIC      "ustar"     /* 5 chars and a null */
+#define GNUTMAGIC   "ustar  "   /* 7 chars and a null */
+
 
 #endif

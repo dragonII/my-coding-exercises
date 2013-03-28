@@ -1,8 +1,17 @@
 /* is_tar() -- figure out whether file is a tar archive */
 
-#include "file.h"
+#include "file_.h"
 #include "magic_.h"
 #include "tar_.h"
+
+#include <string.h>
+
+static const char tartype[][32] =
+{
+    "tar archive",
+    "POSIX tar archive",
+    "POSIX tar archive (GNU)",
+};
 
 /* Return
     0 if the checksum is bad (i.e., probably not a tar archive),
@@ -27,7 +36,7 @@ static int is_tar(const unsigned char* buf, size_t nbytes)
         sum += *p++;
 
     /* Adjust checksum to count the `chksum' field as blanks */
-    for(i = size_t(header->header.chksum); --i >= 0; )
+    for(i = (size_t)header->header.chksum; --i >= 0; )
         sum -= header->header.chksum[i];
     sum += ' ' * sizeof header->header.chksum;
 

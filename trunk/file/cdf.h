@@ -46,7 +46,7 @@ typedef struct
     size_t       sat_len;
 } cdf_sat_t;
 
-
+typedef uint32_t cdf_dirid_t;
 
 typedef struct
 {
