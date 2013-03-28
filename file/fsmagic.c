@@ -1,6 +1,6 @@
 /* fsmagic - magic based on filesystem info - directory, special files, etc */
 
-#include "file.h"
+#include "file_.h"
 #include "magic_.h"
 
 #include <sys/types.h>

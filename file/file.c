@@ -14,7 +14,7 @@
 
 #include <wchar.h>
 
-#include "file.h"
+#include "file_.h"
 #include "magic_.h"
 
 static char* progname;       /* used throughout */

@@ -51,7 +51,7 @@
 #define VERSION             "513"
 
 
-#include "file.h"
+#include "file_.h"
 
 int magic_version(void);
 int magic_check(struct magic_set*, const char*);
