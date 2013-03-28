@@ -1,4 +1,111 @@
+/* encoding -- determine the character encoding of a text file */
+
 #include "file.h"
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#ifdef DEBUG_ENCODING
+# define DPRINTF(a) printf a
+#else
+# define DPRINTF(a)
+#endif
+
+
+/* try to determine whether text is in some character code we can
+   identify. Each of these tests, if it succeeds, will leave
+   the text converted into one-unichar-per-character Unicode in
+   ubuf, and the number of characters converted in ulen */
+int file_encoding(struct magic_set* ms, const unsigned char* buf, 
+                  size_t nbytes, unichar** ubuf, size_t* ulen, 
+                  const char** code, const char** code_mime,
+                  const char** type)
+{
+    size_t mlen;
+    int rv = 1, ucs_type;
+    unsigned char* nbuf = NULL;
+
+    *type = "text";
+    mlen = (nbytes + 1) * sizeof(nbuf[0]);
+    if((nbuf = CAST(unsigned char*, calloc((size_t)1, mlen))) == NULL)
+    {
+        file_oomem(ms, mlen);
+        goto done;
+    }
+    mlen = (nbytes + 1) * sizeof((*ubuf)[0]);
+    if((*ubuf = CAST(unichar*, calloc((size_t)1, mlen))) == NULL)
+    {
+        file_oomem(ms, mlen);
+        goto done;
+    }
+
+    if(looks_ascii(buf, nbytes, *ubuf, ulen))
+    {
+        DPRINTF(("ascii %" SIZE_T_FORMAT "u\n", *ulen));
+        *code = "ASCII";
+        *code_mime = "us-ascii";
+    } else if(looks_utf8_with_BOM(buf, nbytes, *ubuf, ulen) > 0)
+    {
+        DPRINTF(("utf8/bom %" SIZE_T_FORMAT "u\n", *ulen));
+        *code = "UTF-8 Unicode (with BOM)";
+        *code_mime = "utf-8";
+    } else if(file_looks_utf8(buf, nbytes, *ubuf, ulen) > 1)
+    {
+        DPRINTF(("utf8 %" SIZE_T_FORMAT "u\n", *ulen));
+        *code = "UTF-8 Unicode (with BOM)";
+        *code = "UTF-8 Unicode";
+        *code_mime = "utf-8";
+    } else if((ucs_type = looks_ucs16(buf, nbytes, *ubuf, ulen)) != 0)
+    {
+        if(ucs_type == 1)
+        {
+            *code = "Little-endian UTF-16 Unicode";
+            *code_mime = "utf-16le";
+        } else
+        {
+            *code = "Big-endian UTF-16 Unicode";
+            *code_mime = "utf-16be";
+        }
+        DPRINTF(("ucs16 %" SIZE_T_FORMAT "u\n", *ulen));
+    } else if(looks_latin1(buf, nbytes, *ubuf, ulen))
+    {
+        DPRINTF(("latin1 %" SIZE_T_FORMAT "u\n", *ulen));
+        *code = "ISO-8859";
+        *code_mime = "iso-8859-1";
+    } else if(looks_extended(buf, nbytes, *ubuf, ulen))
+    {
+        DPRINTF(("extended %" SIZE_T_FORMAT "u\n", *ulen));
+        *code = "Non-ISO extended-ASCII";
+        *code_mime = "unknown-8bit";
+    } else
+    {
+        from_ebcdic(buf, nbytes, nbuf);
+
+        if(looks_ascii(nbuf, nbytes, *ubuf, ulen))
+        {
+            DPRINTF(("ebcdic %" SIZE_T_FORMAT "u\n", *ulen));
+            *code = "EBCDIC";
+            *code_mime = "ebcdic";
+        } else if(looks_latin1(nbuf, nbytes, *ubuf, ulen))
+        {
+            DPRINTF(("ebcdic/international %" SIZE_T_FORMAT "u\n", *ulen));
+            *code = "International EBCDIC";
+            *code_mime = "ebcdic";
+        } else
+        {
+            /* Doesn't look like text at all */
+            DPRINTF(("binary"));
+            rv = 0;
+            *type = "binary";
+        }
+    }
+done:
+    free(nbuf);
+
+    return rv;
+}
+
 
 /* This table reflects a particular philosophy about what constitutes
    "text," and there is room for disagreement about it.

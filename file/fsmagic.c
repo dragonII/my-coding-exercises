@@ -1,6 +1,7 @@
 /* fsmagic - magic based on filesystem info - directory, special files, etc */
 
 #include "file.h"
+#include "magic_.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -9,6 +10,46 @@
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
+
+
+#ifdef S_IFLNK
+static int
+bad_link(struct magic_set* ms, int err, char* buf)
+{
+    int mime = ms->flags & MAGIC_MIME;
+    if((mime & MAGIC_MIME_TYPE) &&
+            file_printf(ms, "inode/symlink") == -1)
+        return -1;
+    else if(!mime)
+    {
+        if(ms->flags & MAGIC_ERROR)
+        {
+            file_error(ms, err, "broken symoblic link to `%s'", buf);
+            return -1;
+        }
+        if(file_printf(ms, "broken symbolic link to `%s'", buf) == -1)
+            return -1;
+    }
+    return 1;
+}
+#endif
+
+
+static int
+handle_mime(struct magic_set* ms, int mime, const char* str)
+{
+    if((mime & MAGIC_MIME_TYPE))
+    {
+        if(file_printf(ms, "inode/%s", str) == -1)
+            return -1;
+        if((mime & MAGIC_MIME_ENCODING) && file_printf(ms, 
+                                            "; charset=") == -1)
+            return -1;
+    }
+    if((mime & MAGIC_MIME_ENCODING) && file_printf(ms, "binary") == -1)
+        return -1;
+    return 0;
+}
 
 int file_fsmagic(struct magic_set* ms, const char* fn, struct stat* sb)
 {
@@ -81,7 +122,7 @@ int file_fsmagic(struct magic_set* ms, const char* fn, struct stat* sb)
              return -1;
          break;
 
-#ifdef S_IFCHR:
+#ifdef S_IFCHR
          case S_IFCHR:
              /* if -s has been specified, treat character special files
                 like ordinary files. Otherwise, just report that they
@@ -211,7 +252,7 @@ int file_fsmagic(struct magic_set* ms, const char* fn, struct stat* sb)
                  {
                      if(handle_mime(ms, mime, "symlink") == -1)
                          return -1;
-                 } else if(file_printf(ms, "%ssymbolic link to `%s'"
+                 } else if(file_printf(ms, "%ssymbolic link to `%s'",
                                      COMMA, buf) == -1)
                          return -1;
              }

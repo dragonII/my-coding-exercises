@@ -8,7 +8,7 @@ CFLAGS=-Wall -c -g
 LDFLAGS=-g
 ECHO=echo
 TARGET=file
-DFLAGS=-D_GNU_SOURCE
+DFLAGS=-D_GNU_SOURCE -DDEBUG_ENCODING
 
 SOURCES=$(wildcard *.c)
 OBJECTS=$(subst .c,.o, $(SOURCES))
