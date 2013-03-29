@@ -31,10 +31,10 @@ typedef struct
     uint32_t    h_num_sectors_in_sat;
     uint32_t    h_secid_first_directory;
     uint8_t     h_unused1[4];
-    uint32_t    h_mim_size_standard_stream;
+    uint32_t    h_min_size_standard_stream;
     cdf_secid_t h_secid_first_sector_in_short_sat;
     uint32_t    h_num_sectors_in_short_sat;
-    cdf_secid_t h_secif_first_sector_in_master_sat;
+    cdf_secid_t h_secid_first_sector_in_master_sat;
     uint32_t    h_num_sectors_in_master_sat;
     cdf_secid_t h_master_sat[436 / 4];
 } cdf_header_t;
@@ -88,5 +88,7 @@ typedef struct
     size_t dir_len;
 } cdf_dir_t;
 
+
+int cdf_read_header(const cdf_info_t* info, cdf_header_t* h);
 
 #endif
