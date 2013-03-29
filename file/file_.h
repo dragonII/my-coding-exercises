@@ -379,6 +379,7 @@ int cdf_timestamp_to_timespec(struct timespec*, cdf_timestamp_t);
 
 int file_zmagic(struct magic_set* ms, int fd, const char* name,
                 const unsigned char* buf, size_t nbytes);
-
+int file_trycdf(struct magic_set *ms, int fd, const unsigned char *buf,
+                size_t nbytes);
 
 #endif
