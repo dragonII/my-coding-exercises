@@ -7,6 +7,14 @@
 typedef uint64_t cdf_timestamp_t;
 typedef int32_t  cdf_secid_t;
 
+#define CDF_LOOP_LIMIT      10000
+
+#define CDF_SECID_NUMM      0
+#define CDF_SECID_FREE      -1
+#define CDF_SECID_END_OF_CHAIN              -2
+#define CDF_SECID_SECTOR_ALLOCATION_TABLE   -3
+#define CDF_SECID_MASTER_SECTOR_ALLOCATION_TABLE    -4
+
 #define CDF_TIME_PREC   10000000
 #define CDF_BASE_YEAR   1601
 
@@ -38,6 +46,12 @@ typedef struct
     uint32_t    h_num_sectors_in_master_sat;
     cdf_secid_t h_master_sat[436 / 4];
 } cdf_header_t;
+
+
+#define CDF_SEC_SIZE(h) ((size_t)(1 << (h)->h_sec_size_p2))
+#define CDF_SEC_POS(h, secid) (CDF_SEC_SIZE(h) + (secid) * CDF_SEC_SIZE(h))
+#define CDF_SHORT_SEC_SIZE(h)   ((size_t)(1 << (h)->h_short_sec_size_p2))
+#define CDF_SHORT_SEC_POS(h, secid) ((secid) * CDF_SHORT_SEC_SIZE(h))
 
 
 typedef struct
@@ -74,6 +88,7 @@ typedef struct
     uint32_t    d_unused0;
 } cdf_directory_t;
 
+#define CDF_DIRECTORY_SIZE  128
 
 typedef struct
 {
@@ -90,5 +105,25 @@ typedef struct
 
 
 int cdf_read_header(const cdf_info_t* info, cdf_header_t* h);
+int cdf_read_sat(const cdf_info_t*, cdf_header_t*, cdf_sat_t*);
+
+void cdf_dump_header(const cdf_header_t*);
+void cdf_dump_sat(const char*, const cdf_sat_t*, size_t);
+int cdf_read_ssat(const cdf_info_t* info, const cdf_header_t* h,
+                 const cdf_sat_t* sat, cdf_sat_t* ssat);
+void cdf_dump_dir(const cdf_info_t* info, const cdf_header_t* h, 
+        const cdf_sat_t* sat, const cdf_sat_t* ssat, 
+        const cdf_stream_t* sst, const cdf_dir_t* dir);
+
+
+ssize_t cdf_read_sector(const cdf_info_t*, void*, size_t, 
+                size_t, const cdf_header_t*, cdf_secid_t);
+int cdf_read_dir(const cdf_info_t* info, const cdf_header_t* h,
+                const cdf_sat_t* sat, cdf_dir_t* dir);
+int cdf_read_short_stream(const cdf_info_t* info, const cdf_header_t* h,
+         const cdf_sat_t* sat, const cdf_dir_t* dir, cdf_stream_t* scn);
+
+char* cdf_ctime1(const time_t* sec);
+char* cdf_ctime(const time_t* sec, char* buf);
 
 #endif
