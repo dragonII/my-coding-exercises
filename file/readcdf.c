@@ -2,6 +2,8 @@
 #include "cdf.h"
 #include "magic_.h"
 
+#include <errno.h>
+
 
 int file_trycdf(struct magic_set *ms, int fd, const unsigned char *buf,
                 size_t nbytes)

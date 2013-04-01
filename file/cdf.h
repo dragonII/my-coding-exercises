@@ -107,6 +107,7 @@ typedef struct
 int cdf_read_header(const cdf_info_t* info, cdf_header_t* h);
 int cdf_read_sat(const cdf_info_t*, cdf_header_t*, cdf_sat_t*);
 
+void cdf_dump(void* v, size_t len);
 void cdf_dump_header(const cdf_header_t*);
 void cdf_dump_sat(const char*, const cdf_sat_t*, size_t);
 int cdf_read_ssat(const cdf_info_t* info, const cdf_header_t* h,
@@ -114,6 +115,16 @@ int cdf_read_ssat(const cdf_info_t* info, const cdf_header_t* h,
 void cdf_dump_dir(const cdf_info_t* info, const cdf_header_t* h, 
         const cdf_sat_t* sat, const cdf_sat_t* ssat, 
         const cdf_stream_t* sst, const cdf_dir_t* dir);
+void cdf_dump_stream(const cdf_header_t* h, const cdf_stream_t* sst);
+
+int cdf_read_sector_chain(const cdf_info_t* info, const cdf_header_t* h,
+    const cdf_sat_t* sat, const cdf_sat_t* ssat, const cdf_stream_t* sst,
+    cdf_secid_t sid, size_t len, cdf_stream_t* scn);
+int cdf_read_short_sector_chain(const cdf_header_t* h, const cdf_sat_t* ssat,
+                                const cdf_stream_t* sst, cdf_secid_t sid,
+                                size_t len, cdf_stream_t* scn);
+ssize_t cdf_read_short_sector(const cdf_stream_t* sst, void* buf, size_t offs,
+                      size_t len, const cdf_header_t* h, cdf_secid_t id);
 
 
 ssize_t cdf_read_sector(const cdf_info_t*, void*, size_t, 
@@ -122,6 +133,12 @@ int cdf_read_dir(const cdf_info_t* info, const cdf_header_t* h,
                 const cdf_sat_t* sat, cdf_dir_t* dir);
 int cdf_read_short_stream(const cdf_info_t* info, const cdf_header_t* h,
          const cdf_sat_t* sat, const cdf_dir_t* dir, cdf_stream_t* scn);
+
+int cdf_read_summary_info(const cdf_info_t* info, const cdf_header_t* h,
+                      const cdf_sat_t* sat, const cdf_sat_t* ssat,
+                      const cdf_stream_t* sst, const cdf_dir_t* dir,
+                      cdf_stream_t* scn);
+
 
 char* cdf_ctime1(const time_t* sec);
 char* cdf_ctime(const time_t* sec, char* buf);
