@@ -9,6 +9,8 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <utime.h>
+#include <sys/time.h>
 
 #ifndef PIPE_BUF
 #define PIPE_BUF 512
@@ -131,6 +133,32 @@ unreadable_info(struct magic_set* ms, mode_t md, const char* file)
         return -1;
     return 0;
 }
+
+
+static void
+close_and_restore(const struct magic_set* ms, const char* name,
+                    int fd, const struct stat* sb)
+{
+    if(fd == STDIN_FILENO)
+        return;
+    close(fd);
+
+    if((ms->flags & MAGIC_PRESERVE_ATIME) != 0)
+    {
+        /* Try to restore access, modification times if read it.
+           This is really *bad* because it will modify the status
+           time of the file... And of course this will affect
+           backup programs */
+
+        struct timeval utsbuf[2];
+        memset(utsbuf, 0, sizeof(utsbuf));
+        utsbuf[0].tv_sec = sb->st_atime;
+        utsbuf[1].tv_sec = sb->st_mtime;
+
+        utimes(name, utsbuf);   /* don't care if loses */
+    }
+}
+
 
 
 #ifndef COMPILE_ONLY

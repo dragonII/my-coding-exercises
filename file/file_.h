@@ -370,6 +370,7 @@ size_t strlcat(char* dst, const char* src, size_t siz);
 
 ssize_t sread(int, void*, size_t, int __attribute__((__unused__)));
 
+const char* file_getbuffer(struct magic_set* ms);
 int file_encoding(struct magic_set* ms, const unsigned char* buf, 
                   size_t nbytes, unichar** ubuf, size_t* ulen, 
                   const char** code, const char** code_mime,
@@ -382,11 +383,19 @@ int cdf_timestamp_to_timespec(struct timespec*, cdf_timestamp_t);
 
 int file_zmagic(struct magic_set* ms, int fd, const char* name,
                 const unsigned char* buf, size_t nbytes);
+int file_ascmagic(struct magic_set* ms, const unsigned char* buf, 
+                    size_t nbytes, int text);
+
 int file_trycdf(struct magic_set *ms, int fd, const unsigned char *buf,
                 size_t nbytes);
 
 int file_tryelf(struct magic_set* ms, int fd, const unsigned char* buf,
                 size_t nbytes);
 
+size_t file_printedlen(const struct magic_set* ms);
+int file_replace(struct magic_set* ms, const char* pat, const char* rep);
+int file_ascmagic_with_encoding(struct magic_set* ms, const unsigned char* buf,
+                            size_t nbytes, unichar* ubuf, size_t ulen, 
+                            const char* code, const char* type, int text);
 
 #endif
