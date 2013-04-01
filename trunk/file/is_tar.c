@@ -5,6 +5,9 @@
 #include "tar_.h"
 
 #include <string.h>
+#include <ctype.h>
+
+#define isodigit(c)     ( ((c) >= '0') && ((c) <= '7'))
 
 static const char tartype[][32] =
 {
@@ -12,6 +15,36 @@ static const char tartype[][32] =
     "POSIX tar archive",
     "POSIX tar archive (GNU)",
 };
+
+
+/* Quick and dirty octal conversion.
+    
+   Result is -1 if the field is invalid (all blank, or non-octal) */
+static int from_oct(int digs, const char* where)
+{
+    int value;
+
+    while(isspace((unsigned char)*where))
+    {
+        /* Skip spaces */
+        where++;
+        if(--digs <= 0)
+            return -1;      /* All blank field */
+    }
+    value = 0;
+    while(digs > 0 && isodigit(*where))
+    {
+        /* scan till non-octal */
+        value = (value << 3) | (*where++ - '0');
+        --digs;
+    }
+
+    if(digs > 0 && *where && !isspace((unsigned char)*where))
+        return -1;
+
+    return value;
+}
+
 
 /* Return
     0 if the checksum is bad (i.e., probably not a tar archive),

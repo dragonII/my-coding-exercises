@@ -6,6 +6,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <regex.h>
+#include <ctype.h>
+#include <wchar.h>
+#include <wctype.h>
 
 
 /* like printf, only we append to a buffer */
@@ -283,4 +288,130 @@ done:
 
 
 
+size_t file_printedlen(const struct magic_set* ms)
+{
+    return ms->o.buf == NULL ? 0 : strlen(ms->o.buf);
+}
 
+
+int file_replace(struct magic_set* ms, const char* pat, const char* rep)
+{
+    regex_t rx;
+    int rc;
+
+    rc = regcomp(&rx, pat, REG_EXTENDED);
+    if(rc)
+    {
+        char errmsg[512];
+        regerror(rc, &rx, errmsg, sizeof(errmsg));
+        file_magerror(ms, "regex error %d, (%s)", rc, errmsg);
+        return -1;
+    } else
+    {
+        regmatch_t rm;
+        int nm = 0;
+        while(regexec(&rx, ms->o.buf, 1, &rm, 0) == 0)
+        {
+            ms->o.buf[rm.rm_so] = '\0';
+            if(file_printf(ms, "%s%s", rep,
+                            rm.rm_eo != 0 ? ms->o.buf + rm.rm_eo : "") == -1)
+                return -1;
+            nm++;
+        }
+        regfree(&rx);
+        return nm;
+    }
+}
+
+
+#define OCTALIFY(n, o)  \
+    /* LINTED */    \
+    (void)(*(n)++ = '\\',       \
+    *(n)++ = (((uint32_t)*(o) >> 6) & 3) + '0', \
+    *(n)++ = (((uint32_t)*(o) >> 3) & 7) + '0', \
+    *(n)++ = (((uint32_t)*(o) >> 0) & 7) + '0', \
+    (o)++)
+
+
+const char*
+file_getbuffer(struct magic_set* ms)
+{
+    char *pbuf, *op, *np;
+    size_t psize, len;
+
+    if(ms->event_flags & EVENT_HAD_ERR)
+        return NULL;
+
+    if(ms->flags & MAGIC_RAW)
+        return ms->o.buf;
+
+    if(ms->o.buf == NULL)
+        return NULL;
+
+    /* * 4 is for octal representation, + 1 is for NUL */
+    len = strlen(ms->o.buf);
+    if(len > (SIZE_MAX - 1) / 4)
+    {
+        file_oomem(ms, len);
+        return NULL;
+    }
+    psize = len * 4 + 1;
+    if((pbuf = CAST(char*, realloc(ms->o.buf, psize))) == NULL)
+    {
+        file_oomem(ms, psize);
+        return NULL;
+    }
+    ms->o.buf = pbuf;
+
+    {
+        mbstate_t state;
+        wchar_t nextchar;
+        int mb_conv = 1;
+        size_t bytesconsumed;
+        char* eop;
+        memset(&state, 0, sizeof(mbstate_t));
+
+        np = ms->o.pbuf;
+        op = ms->o.buf;
+        eop = op + len;
+
+        while(op < eop)
+        {
+            bytesconsumed = mbrtowc(&nextchar, op,
+                                (size_t)(eop - op), &state);
+            if(bytesconsumed == (size_t)(-1) ||
+               bytesconsumed == (size_t)(-2))
+            {
+                mb_conv = 0;
+                break;
+            }
+
+            if(iswprint(nextchar))
+            {
+                memcpy(np, op, bytesconsumed);
+                op += bytesconsumed;
+                np += bytesconsumed;
+            } else
+            {
+                while(bytesconsumed-- > 0)
+                    OCTALIFY(np, op);
+            }
+        }
+        *np = '\0';
+
+        /* Parsing succeeded as a multi-byte sequence */
+        if(mb_conv != 0)
+            return ms->o.pbuf;
+    }
+
+    for(np = ms->o.pbuf, op = ms->o.buf; *op; )
+    {
+        if(isprint((unsigned char)*op))
+        {
+            *np++ = *op++;
+        } else
+            OCTALIFY(np, op);
+    }
+    *np = '\0';
+    return ms->o.pbuf;
+}
