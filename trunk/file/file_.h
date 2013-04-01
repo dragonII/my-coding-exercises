@@ -374,6 +374,9 @@ int file_encoding(struct magic_set* ms, const unsigned char* buf,
                   size_t nbytes, unichar** ubuf, size_t* ulen, 
                   const char** code, const char** code_mime,
                   const char** type);
+int file_softmagic(struct magic_set* ms, const unsigned char* buf,
+                    size_t nbytes, int mode, int text);
+
 
 int cdf_timestamp_to_timespec(struct timespec*, cdf_timestamp_t);
 
@@ -381,5 +384,9 @@ int file_zmagic(struct magic_set* ms, int fd, const char* name,
                 const unsigned char* buf, size_t nbytes);
 int file_trycdf(struct magic_set *ms, int fd, const unsigned char *buf,
                 size_t nbytes);
+
+int file_tryelf(struct magic_set* ms, int fd, const unsigned char* buf,
+                size_t nbytes);
+
 
 #endif

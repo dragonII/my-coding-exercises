@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <err.h>        /* warn(const char* fmt, ...) */
+#include <ctype.h>      /* isprint */
 
 #ifndef EFTYPE
 #define EFTYPE EINVAL
@@ -705,3 +707,139 @@ out:
     return 0;
 }
 
+
+
+void cdf_dump_stream(const cdf_header_t* h, const cdf_stream_t* sst)
+{
+    ssize_t ss = sst->sst_dirlen < h->h_min_size_standard_stream
+                 ? CDF_SHORT_SEC_SIZE(h) : CDF_SEC_SIZE(h);
+    cdf_dump(sst->sst_tab, ss * sst->sst_len);
+}
+
+
+int cdf_read_short_sector_chain(const cdf_header_t* h, const cdf_sat_t* ssat,
+                                const cdf_stream_t* sst, cdf_secid_t sid,
+                                size_t len, cdf_stream_t* scn)
+{
+    size_t ss = CDF_SHORT_SEC_SIZE(h), i, j;
+    scn->sst_len = cdf_count_chain(ssat, sid, CDF_SEC_SIZE(h));
+    scn->sst_dirlen = len;
+
+    if(sst->sst_tab == NULL || scn->sst_len == (size_t) -1)
+        return -1;
+
+    scn->sst_tab = calloc(scn->sst_len, ss);
+    if(scn->sst_tab == NULL)
+        return -1;
+
+    for(j = i = 0; sid >= 0; i++, j++)
+    {
+        if(j >= CDF_LOOP_LIMIT)
+        {
+            DPRINTF(("Read short sector chain loop limit"));
+            errno = EFTYPE;
+            goto out;
+        }
+        if(i >= scn->sst_len)
+        {
+            DPRINTF(("Out of bounds reading short sector chain "
+                     "%" SIZE_T_FORMAT "u > %" SIZE_T_FORMAT "u\n",
+                     i, scn->sst_len));
+            errno = EFTYPE;
+            goto out;
+        }
+        if(cdf_read_short_sector(sst, scn->sst_tab, i * ss, ss, h,
+                sid) != (ssize_t)ss)
+        {
+            DPRINTF(("Reading short sector chain %d", sid));
+            goto out;
+        }
+        sid = CDF_TOLE4((uint32_t)ssat->sat_tab[sid]);
+    }
+    return 0;
+out:
+    free(scn->sst_tab);
+    return -1;
+}
+
+
+void cdf_dump(void* v, size_t len)
+{
+    size_t i, j;
+    unsigned char* p = v;
+    char abuf[16];
+    fprintf(stderr, "%.4x: ", 0);
+    for(i = 0, j = 0; i < len; i++, p++)
+    {
+        fprintf(stderr, "%.2x ", *p);
+        abuf[j++] = isprint(*p) ? *p : '.';
+        if(j == 16)
+        {
+            j = 0;
+            abuf[15] = '\0';
+            fprintf(stderr, "%s\n%.4" SIZE_T_FORMAT "x: ",
+                    abuf, i + 1);
+        }
+    }
+    fprintf(stderr, "\n");
+}
+
+
+ssize_t
+cdf_read_short_sector(const cdf_stream_t* sst, void* buf, size_t offs,
+                      size_t len, const cdf_header_t* h, cdf_secid_t id)
+{
+    size_t ss = CDF_SHORT_SEC_SIZE(h);
+    size_t pos = CDF_SHORT_SEC_POS(h, id);
+    assert(ss == len);
+    if(pos > CDF_SEC_SIZE(h) * sst->sst_len)
+    {
+        DPRINTF(("Out of bounds read %" SIZE_T_FORMAT "u > %"
+                  SIZE_T_FORMAT "u\n",
+                  pos, CDF_SEC_SIZE(h) * sst->sst_len));
+        return -1;
+    }
+    memcpy(((char*)buf) + offs,
+            ((const char*)sst->sst_tab) + pos, len);
+    return len;
+}
+
+
+static int cdf_namecmp(const char* d, const uint16_t* s, size_t l)
+{
+    for(; l--; d++, s++)
+        if(*d != CDF_TOLE2(*s))
+            return (unsigned char)*d - CDF_TOLE2(*s);
+
+    return 0;
+}
+
+
+int 
+cdf_read_summary_info(const cdf_info_t* info, const cdf_header_t* h,
+                      const cdf_sat_t* sat, const cdf_sat_t* ssat,
+                      const cdf_stream_t* sst, const cdf_dir_t* dir,
+                      cdf_stream_t* scn)
+{
+    size_t i;
+    const cdf_directory_t* d;
+    static const char name[] = "\05SummaryInformation";
+
+    for(i = dir->dir_len; i > 0; i--)
+    {
+        if(dir->dir_tab[i - 1].d_type == CDF_DIR_TYPE_USER_STREAM &&
+            cdf_namecmp(name, dir->dir_tab[i - 1].d_name, sizeof(name)) == 0)
+            break;
+    }
+
+    if(i == 0)
+    {
+        DPRINTF(("Cannot find summary information section\n"));
+        errno = ESRCH;
+        return -1;
+    }
+
+    d = &dir->dir_tab[i - 1];
+    return cdf_read_sector_chain(info, h, sat, ssat, sst,
+                    d->d_stream_first_sector, d->d_size, scn);
+}
