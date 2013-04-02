@@ -116,6 +116,12 @@ cdf_getuint32(const uint8_t* p, size_t offs)
 }
 
 
+uint16_t cdf_tole2(uint16_t sv)
+{
+    return CDF_TOLE2(sv);
+}
+
+
 #define CDF_GETUINT32(x, y) cdf_getuint32(x, y)
 
 

@@ -415,3 +415,14 @@ file_getbuffer(struct magic_set* ms)
     *np = '\0';
     return ms->o.pbuf;
 }
+
+
+void file_badseek(struct magic_set* ms)
+{
+    file_error(ms, errno, "error seeking");
+}
+
+void file_badread(struct magic_set* ms)
+{
+    file_error(ms, errno, "error reading");
+}
