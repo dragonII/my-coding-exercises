@@ -4,7 +4,10 @@
 
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
 
+#define NOTMIME(ms)     (((ms)->flags & MAGIC_MIME) == 0)
 
 static int
 cdf_file_property_info(struct magic_set* ms, const cdf_property_info_t* info,
@@ -170,7 +173,7 @@ cdf_file_summary_info(struct magic_set* ms, const cdf_header_t* h,
                     return -2;
                 break;
             default:
-                if(file_printf(ms, ", OS %d, Version: %d.%d", si_si_os,
+                if(file_printf(ms, ", OS %d, Version: %d.%d", si.si_os,
                         si.si_os_version & 0xff,
                         (uint32_t)si.si_os_version >> 8) == -1)
                     return -2;

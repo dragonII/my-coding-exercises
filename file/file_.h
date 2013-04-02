@@ -398,4 +398,11 @@ int file_ascmagic_with_encoding(struct magic_set* ms, const unsigned char* buf,
                             size_t nbytes, unichar* ubuf, size_t ulen, 
                             const char* code, const char* type, int text);
 
+int file_pipe2file(struct magic_set*, int, const void*, size_t);
+
+void file_badseek(struct magic_set* ms);
+void file_badread(struct magic_set* ms);
+
+
+
 #endif

@@ -275,6 +275,8 @@ int cdf_read_short_sector_chain(const cdf_header_t* h, const cdf_sat_t* ssat,
 ssize_t cdf_read_short_sector(const cdf_stream_t* sst, void* buf, size_t offs,
                       size_t len, const cdf_header_t* h, cdf_secid_t id);
 
+int cdf_print_property_name(char* buf, size_t bufsiz, uint32_t p);
+int cdf_print_elapsed_time(char* buf, size_t bufsiz, cdf_timestamp_t ts);
 
 ssize_t cdf_read_sector(const cdf_info_t*, void*, size_t, 
                 size_t, const cdf_header_t*, cdf_secid_t);
@@ -292,4 +294,10 @@ int cdf_read_summary_info(const cdf_info_t* info, const cdf_header_t* h,
 char* cdf_ctime1(const time_t* sec);
 char* cdf_ctime(const time_t* sec, char* buf);
 
+int cdf_unpack_summary_info(const cdf_stream_t*, const cdf_header_t*,
+                cdf_summary_info_header_t*, cdf_property_info_t**,
+                size_t*);
+
+
+uint16_t cdf_tole2(uint16_t sv);
 #endif
