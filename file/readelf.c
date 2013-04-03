@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 
 #define isquote(c)  (strchr("'\"'", (c)) != NULL)
@@ -124,6 +125,37 @@ getu64(int swap, uint64_t value)
                               elf_getu32(swap, ph32.p_align) : 4)   \
                     : (off_t)(ph64.p_align ?        \
                               elf_getu64(swap, ph64.p_align) : 4)))
+#define xsh_sizeof  (clazz == ELFCLASS32        \
+                    ? sizeof(sh32)              \
+                    : sizeof(sh64))
+#define xsh_size    (size_t)(clazz == ELFCLASS32    \
+                    ? elf_getu32(swap, sh32.sh_size)    \
+                    : elf_getu64(swap, sh64.sh_size))
+#define xsh_addr    (clazz == ELFCLASS32        \
+                    ? (void*)&sh32               \
+                    : (void*)&sh64)
+#define xsh_offset  (size_t)(clazz == ELFCLASS32    \
+                    ? elf_getu32(swap, sh32.sh_offset)  \
+                    : elf_getu64(swap, sh64.sh_offset))
+#define xsh_name    (clazz == ELFCLASS32        \
+                    ? elf_getu32(swap, sh32.sh_name)    \
+                    : elf_getu32(swap, sh64.sh_name))
+#define xsh_type    (clazz == ELFCLASS32        \
+                    ? elf_getu32(swap, sh32.sh_type)    \
+                    : elf_getu32(swap, sh64.sh_type))
+#define xcap_tag    (clazz == ELFCLASS32        \
+                    ? elf_getu32(swap, cap32.c_tag) \
+                    : elf_getu64(swap, cap64.c_tag))
+#define xcap_sizeof (clazz == ELFCLASS32        \
+                    ? sizeof cap32     \
+                    : sizeof cap64)
+#define xcap_val    (clazz == ELFCLASS32        \
+                    ? elf_getu32(swap, cap32.c_un.c_val)    \
+                    : elf_getu64(swap, cap64.c_un.c_val))
+#define xcap_addr   (clazz == ELFCLASS32        \
+                    ? (void*)&cap32     \
+                    : (void*)&cap64)
+
 
 
 #define FLAGS_DID_CORE          0x01
@@ -788,13 +820,69 @@ dophn_exec(struct magic_set* ms, int clazz, int swap, int fd, off_t off,
 }
 
 
+/* SunOS 5.x hardware capability descriptions */
+typedef struct cap_desc
+{
+    uint64_t cd_mask;
+    const char* cd_name;
+} cap_desc_t;
+
+static const cap_desc_t cap_desc_sparc[] =
+{
+    { AV_SPARC_MUL32,           "MUL32"},
+    { AV_SPARC_DIV32,           "DIV32"},
+    { AV_SPARC_FSMULD,          "FSMULD"},
+    { AV_SPARC_V8PLUS,          "V8PLUS"},
+    { AV_SPARC_POPC,            "POPC"},
+    { AV_SPARC_VIS,             "VIS"},
+    { AV_SPARC_VIS2,            "VIS2"},
+    { AV_SPARC_ASI_BLK_INIT,    "ASI_BLK_INIT"},
+    { AV_SPARC_FMAF,            "FMAF"},
+    { AV_SPARC_FJFMAU,          "FJFMAU"},
+    { AV_SPARC_IMA,             "IMA"},
+    { 0, NULL}
+};
+
+
+static const cap_desc_t cap_desc_386[] = 
+{
+    { AV_386_FPU,       "FPU" },
+    { AV_386_TSC,       "TSC" },
+    { AV_386_CX8,       "CX8" },
+    { AV_386_SEP,       "SEP" },
+    { AV_386_AMD_SYSC,  "AMD_SYSC" },
+    { AV_386_CMOV,      "CMOV" },
+    { AV_386_MMX,       "MMX" },
+    { AV_386_AMD_MMX,   "AMD_MMX" },
+    { AV_386_AMD_3DNow, "AMD_3DNow" },
+    { AV_386_AMD_3DNowx,"AMD_3DNowx" },
+    { AV_386_FXSR,      "FXSR" },
+    { AV_386_SSE,       "SSE" },
+    { AV_386_SSE2,      "SSE2" },
+    { AV_386_PAUSE,     "PAUSE" },
+    { AV_386_SSE3,      "SSE3" },
+    { AV_386_MON,       "MON" },
+    { AV_386_CX16,      "CX16" },
+    { AV_386_AHF,       "AHF" },
+    { AV_386_TSCP,      "TSCP" },
+    { AV_386_AMD_SSE4A, "AMD_SSE4A" },
+    { AV_386_POPCNT,    "POPCNT" },
+    { AV_386_AMD_LZCNT, "AMD_LZCNT" },
+    { AV_386_SSSE3,     "SSSE3" },
+    { AV_386_SSE4_1,    "SSE4.1" },
+    { AV_386_SSE4_2,    "SSE4.2" },
+    { 0, NULL }
+};
+
+
+
 static int doshn(struct magic_set* ms, int clazz, int swap, int fd, off_t off,
                 int num, size_t size, off_t fsize, int* flags, int mach, int strtab)
 {
     Elf32_Shdr sh32;
     Elf64_Shdr sh64;
     int stripped = 1;
-    void* buf;
+    void* nbuf;
     off_t noff, coff, name_off;
     uint64_t cap_hw1 = 0;   /* SunOS 5.x hardware capabilities */
     uint64_t cap_sf1 = 0;   /* SunOS 5.x software capabilities */
@@ -808,7 +896,7 @@ static int doshn(struct magic_set* ms, int clazz, int swap, int fd, off_t off,
     }
 
     /* Read offset of name section to be able to read section names later */
-    if(pread(fd, xsh_add, xsh_sizeof, off + size * strtab) == -1)
+    if(pread(fd, xsh_addr, xsh_sizeof, off + size * strtab) == -1)
     {
         file_badread(ms);
         return -1;
@@ -818,6 +906,189 @@ static int doshn(struct magic_set* ms, int clazz, int swap, int fd, off_t off,
     for(; num; num--)
     {
         /* Read the name of this section */
+        if(pread(fd, name, sizeof(name), name_off + xsh_name) == -1)
+        {
+            file_badread(ms);
+            return -1;
+        }
+        name[sizeof(name) - 1] = '\0';
+        if(strcmp(name, ".debug_info") == 0)
+            stripped = 0;
+
+        if(pread(fd, xsh_addr, xsh_sizeof, off) == -1)
+        {
+            file_badread(ms);
+            return -1;
+        }
+        off += size;
+
+        /* Things we can determine before we seek */
+        switch(xsh_type)
+        {
+            case SHT_SYMTAB:
+                stripped = 0;
+                break;
+            default:
+                if(xsh_offset > fsize)
+                    continue;
+                break;
+        }
+
+        /* Things we can determine when we seek */
+        switch(xsh_type)
+        {
+            case SHT_NOTE:
+                if((nbuf = malloc(xsh_size)) == NULL)
+                {
+                    file_error(ms, errno, "Cannot allocate memory"
+                                          " for note");
+                    return -1;
+                }
+                if(pread(fd, nbuf, xsh_size, xsh_offset) == -1)
+                {
+                    file_badread(ms);
+                    free(nbuf);
+                    return -1;
+                }
+
+                noff = 0;
+                for(;;)
+                {
+                    if(noff >= (off_t)xsh_size)
+                        break;
+                    noff = donote(ms, nbuf, (size_t)noff,
+                                xsh_size, clazz, swap, 4, flags);
+                    if(noff == 0)
+                        break;
+                }
+                free(nbuf);
+                break;
+            case SHT_SUNW_cap:
+                switch(mach)
+                {
+                    case EM_SPARC:
+                    case EM_SPARCV9:
+                    case EM_IA_64:
+                    case EM_386:
+                    case EM_AMD64:
+                        break;
+                    default:
+                        goto skip;
+                }
+
+                if(lseek(fd, xsh_offset, SEEK_SET) == (off_t)-1)
+                {
+                    file_badseek(ms);
+                    return -1;
+                }
+                coff = 0;
+                for(;;)
+                {
+                    Elf32_Cap cap32;
+                    Elf64_Cap cap64;
+                    char cbuf[MAX(sizeof cap32, sizeof cap64)];
+                    if((coff += xcap_sizeof) > (off_t)xsh_size)
+                        break;
+                    if(read(fd, cbuf, (size_t)xcap_sizeof) != (ssize_t)xcap_sizeof)
+                    {
+                        file_badread(ms);
+                        return -1;
+                    }
+                    memcpy(xcap_addr, cbuf, xcap_sizeof);
+                    switch(xcap_tag)
+                    {
+                        case CA_SUNW_NULL:
+                            break;
+                        case CA_SUNW_HW_1:
+                            cap_hw1 |= xcap_val;
+                            break;
+                        case CA_SUNW_SF_1:
+                            cap_sf1 |= xcap_val;
+                            break;
+                        default:
+                            if(file_printf(ms,
+                                     ", with unknown capability "
+                                     "0x%" INT64_T_FORMAT "x = 0x%"
+                                     INT64_T_FORMAT "x",
+                                     (unsigned long long)xcap_tag,
+                                     (unsigned long long)xcap_val) == -1)
+                                return -1;
+                            break;
+                    }
+                }
+            skip:
+            default:
+                break;
+        }
+    }
+
+    if(file_printf(ms, ", %sstripped", stripped ? "" : "not ") == -1)
+        return -1;
+    if(cap_hw1)
+    {
+        const cap_desc_t* cdp;
+        switch(mach)
+        {
+            case EM_SPARC:
+            case EM_SPARC32PLUS:
+            case EM_SPARCV9:
+                cdp = cap_desc_sparc;
+                break;
+            case EM_386:
+            case EM_IA_64:
+            case EM_AMD64:
+                cdp = cap_desc_386;
+                break;
+            default:
+                cdp = NULL;
+                break;
+        }
+        if(file_printf(ms, ", uses") == -1)
+            return -1;
+        if(cdp)
+        {
+            while(cdp->cd_name)
+            {
+                if(cap_hw1 & cdp->cd_mask)
+                {
+                    if(file_printf(ms, " %s",
+                            cdp->cd_name) == -1)
+                        return -1;
+                    cap_hw1 &= ~cdp->cd_mask;
+                }
+                ++cdp;
+            }
+            if(cap_hw1)
+                if(file_printf(ms, " unknown hardware capability %x%"
+                                INT64_T_FORMAT "x",
+                                (unsigned long long)cap_hw1) == -1)
+                    return -1;
+        } else
+        {
+            if(file_printf(ms, " hardware capability %x" INT64_T_FORMAT "x",
+                        (unsigned long long)cap_hw1) == -1)
+                return -1;
+        }
+    }
+    if(cap_sf1)
+    {
+        if(cap_sf1 & SF1_SUNW_FPUSED)
+        {
+            if(file_printf(ms, (cap_sf1 & SF1_SUNW_FPKNWN)
+                               ? ", uses frame pointer"
+                               : ", not known to use frame pointer") == -1)
+                return -1;
+        }
+        cap_sf1 &= ~SF1_SUNW_MASK;
+        if(cap_sf1)
+            if(file_printf(ms, ", with unknown software capability %x"
+                                INT64_T_FORMAT "x",
+                                (unsigned long long)cap_sf1) == -1)
+                return -1;
+    }
+    return 0;
+}
+                
 
 
 
