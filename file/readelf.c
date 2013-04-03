@@ -6,6 +6,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
+
+
+#define isquote(c)  (strchr("'\"'", (c)) != NULL)
 
 
 static uint16_t
@@ -94,7 +98,7 @@ getu64(int swap, uint64_t value)
 #define xph_offset  (off_t)(clazz == ELFCLASS32 \
                     ? elf_getu32(swap, ph32.p_offset)   \
                     : elf_getu64(swap, ph64.p_offset))
-#define xph_filez   (size_t)((clazz == ELFCLASS32       \
+#define xph_filesz  (size_t)((clazz == ELFCLASS32       \
                     ? elf_getu32(swap, ph32.p_filesz)   \
                     : elf_getu64(swap, ph64.p_filesz)))
 #define xnh_addr    (clazz == ELFCLASS32        \
@@ -112,16 +116,88 @@ getu64(int swap, uint64_t value)
 #define xnh_type    (clazz == ELFCLASS32        \
                     ? elf_getu32(swap, nh32.n_type) \
                     : elf_getu32(swap, nh64.n_type))
+#define prpsoffsets(i) (clazz == ELFCLASS32        \
+                    ? prpsoffsets32[i]          \
+                    : prpsoffsets64[i])
+#define xph_align   (size_t)((clazz == ELFCLASS32   \
+                    ? (off_t)(ph32.p_align ?        \
+                              elf_getu32(swap, ph32.p_align) : 4)   \
+                    : (off_t)(ph64.p_align ?        \
+                              elf_getu64(swap, ph64.p_align) : 4)))
 
 
 #define FLAGS_DID_CORE          0x01
 #define FLAGS_DID_NOTE          0x02
 #define FLAGS_DID_BUILD_ID      0x04
-#define FLAGS_DID_CORE_TYPLE    0x08
+#define FLAGS_DID_CORE_STYLE    0x08
 #define FLAGS_IS_CORE           0x10
 
 
 #define ELF_ALIGN(a)        ((((a) + align - 1) / align) * align)
+
+/* Try larger offsets first to avoid false matches
+   from earlier data that happen to look like strings */
+static const size_t prpsoffsets32[] =
+{
+    100,    /* SunOS 5.x (command line) */
+    84,     /* SunOS 5.x (short name) */
+    44,     /* Linux (command line) */
+    28,     /* Linux 2.0.36 (short name) */
+    8,      /* FreeBSD */
+};
+
+static const size_t prpsoffsets64[] =
+{
+    136,    /* SunOS 5.x, 64-bit (command line) */
+    120,    /* SunOS 5.x, 64-bit (short name) */
+    56,     /* Linux (command line) */
+    40,     /* Linux (tested on core from 2.4.x, short name) */
+    16,     /* FreeBSD 64-bit */
+};
+
+
+#define NOFFSETS32  (sizeof prpsoffsets32 / sizeof prpsoffsets32[0])
+#define NOFFSETS64  (sizeof prpsoffsets64 / sizeof prpsoffsets64[0])
+#define NOFFSETS    (clazz == ELFCLASS32 ? NOFFSETS32 : NOFFSETS64)
+
+/* Look through the program headers of an executable image, searching
+   for a PT_NOTE section of type NT_PRPSINFO, with a name "CORE" or
+   "FreeBSD"; if one is found, try looking in various places in its
+   contents for a 16-character string containing only printable
+   characters - if found, that string should be the name of the program
+   that dropped core. Note: right after that 16-character string is,
+   at east in SunOS 5.x (and possibly other SVR4-flavored systems) and
+   Linux, a longer string (80 characters, in 5.x, probably other
+   SVR4-flavored systems, and Linux) containing the start of the 
+   command line for that program.
+
+   SunOS 5.x core files contain two PT_NOTE sections, with the types
+   NT_PRPSINFO (old) and NT_PSINFO (new). Thse structs contain the
+   same info about the command name and command line, so it probably
+   isn't worthwhile to look for NT_PSINFO, but the offset are provided
+   above (see USE_NT_PSINFO), in case we ever decide to do so. The
+   NT_PRPSINFO and NT_PSINFO sections are always in order and adjacent;
+   the SunOS 5.x file command relies on this (and prefers the latter).
+
+   The signal number probably appears in a section of type NT_PRSTATUS,
+   but that's also rather OS-dependent, in ways that are harder to
+   dissect with heuristics, so I'm not bothering with the signal number.
+   (I suppose the signal number could be of interest in situations where
+   you don't have the binary of the program that dropped core; if you
+   *do* have that binary, the debugger will probably tell you what
+   signal it was.)  */
+
+#define OS_STYLE_SVR4       0
+#define OS_STYLE_FREEBSD    1
+#define OS_STYLE_NETBSD     2
+
+static const char os_style_names[][8] =
+{
+    "SVR4",
+    "FreeBSD",
+    "NetBSD",
+};
+
 
 
 static size_t
@@ -595,7 +671,7 @@ dophn_core(struct magic_set* ms, int clazz, int swap, int fd, off_t off,
 
         /* This is a PT_NOTE section; loop through all the notes
            in the section */
-        len = xph_filez < sizeof(nbuf) ? xph_filez : sizeof(nbuf);
+        len = xph_filesz < sizeof(nbuf) ? xph_filesz : sizeof(nbuf);
         if((bufsize = pread(fd, nbuf, len, xph_offset)) == -1)
         {
             file_badread(ms);
@@ -614,6 +690,136 @@ dophn_core(struct magic_set* ms, int clazz, int swap, int fd, off_t off,
     }
     return 0;
 }
+
+
+/* Look through the program headers of an executable image, searching
+   for a PT_INTERP section; if one is found, it's dynamically linked,
+   otherwise it's statically linked */
+static int
+dophn_exec(struct magic_set* ms, int clazz, int swap, int fd, off_t off,
+           int num, size_t size, off_t fsize, int* flags, int sh_num)
+{
+    Elf32_Phdr ph32;
+    Elf64_Phdr ph64;
+    const char* linking_style = "statically";
+    const char* shared_libraries = "";
+    unsigned  char nbuf[BUFSIZ];
+    ssize_t bufsize;
+    size_t offset, align, len;
+
+    if(size != xph_sizeof)
+    {
+        if(file_printf(ms, ", corrupted program header size") == -1)
+            return -1;
+        return 0;
+    }
+
+    for(; num; num--)
+    {
+        if(pread(fd, xph_addr, xph_sizeof, off) == -1)
+        {
+            file_badread(ms);
+            return -1;
+        }
+
+        off += size;
+
+        /* Things we can determine brefore we seek */
+        switch(xph_type)
+        {
+            case PT_DYNAMIC:
+                linking_style = "dynamically";
+                break;
+            case PT_INTERP:
+                shared_libraries = " (uses shared libs)";
+                break;
+            default:
+                if(xph_offset > fsize)
+                {
+                    continue;
+                }
+                break;
+        }
+
+        /* Things we can determine when we seek */
+        switch(xph_type)
+        {
+            case PT_NOTE:
+                if((align = xph_align) & 0x80000000UL)
+                {
+                    if(file_printf(ms,
+                                ", invalid note alignment 0x%lx",
+                                (unsigned long)align) == -1)
+                        return -1;
+                    align = 4;
+                }
+                if(sh_num)
+                    break;
+                /* This is a PT_NOTE section; loop through all the notes
+                   in the section. */
+                len = xph_filesz < sizeof(nbuf) ? xph_filesz
+                        : sizeof(nbuf);
+                bufsize = pread(fd, nbuf, len, xph_offset);
+                if(bufsize == -1)
+                {
+                    file_badread(ms);
+                    return -1;
+                }
+                offset = 0;
+                for(;;)
+                {
+                    if(offset >= (size_t)bufsize)
+                        break;
+                    offset = donote(ms, nbuf, offset,
+                                (size_t)bufsize, clazz, swap, align,
+                                flags);
+                    if(offset == 0)
+                        break;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    if(file_printf(ms, ", %s linked%s", linking_style, shared_libraries)
+            == -1)
+        return -1;
+    return 0;
+}
+
+
+static int doshn(struct magic_set* ms, int clazz, int swap, int fd, off_t off,
+                int num, size_t size, off_t fsize, int* flags, int mach, int strtab)
+{
+    Elf32_Shdr sh32;
+    Elf64_Shdr sh64;
+    int stripped = 1;
+    void* buf;
+    off_t noff, coff, name_off;
+    uint64_t cap_hw1 = 0;   /* SunOS 5.x hardware capabilities */
+    uint64_t cap_sf1 = 0;   /* SunOS 5.x software capabilities */
+    char name[50];
+
+    if(size != xsh_sizeof)
+    {
+        if(file_printf(ms, ", corrupted section header size") == -1)
+            return -1;
+        return 0;
+    }
+
+    /* Read offset of name section to be able to read section names later */
+    if(pread(fd, xsh_add, xsh_sizeof, off + size * strtab) == -1)
+    {
+        file_badread(ms);
+        return -1;
+    }
+    name_off = xsh_offset;
+
+    for(; num; num--)
+    {
+        /* Read the name of this section */
+
+
 
 int file_tryelf(struct magic_set* ms, int fd, const unsigned char* buf,
                 size_t nbytes)
