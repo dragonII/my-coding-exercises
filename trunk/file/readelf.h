@@ -36,7 +36,7 @@ typedef struct
     Elf32_Half  e_phnum;
     Elf32_Half  e_shentsize;
     Elf32_Half  e_shnum;
-    Elf32_Half  shstrndx;
+    Elf32_Half  e_shstrndx;
 } Elf32_Ehdr;
 
 
@@ -55,7 +55,7 @@ typedef struct
     Elf64_Half  e_phnum;
     Elf64_Half  e_shentsize;
     Elf64_Half  e_shnum;
-    Elf64_Half  shstrndx;
+    Elf64_Half  e_shstrndx;
 } Elf64_Ehdr;
 
 
@@ -142,6 +142,34 @@ typedef struct
 #define PT_NUM      7
 
 
+typedef struct
+{
+    Elf32_Word  sh_name;
+    Elf32_Word  sh_type;
+    Elf32_Word  sh_flags;
+    Elf32_Addr  sh_addr;
+    Elf32_Off   sh_offset;
+    Elf32_Word  sh_size;
+    Elf32_Word  sh_link;
+    Elf32_Word  sh_info;
+    Elf32_Word  sh_addralign;
+    Elf32_Word  sh_entsize;
+} Elf32_Shdr;
+
+typedef struct
+{
+    Elf64_Word  sh_name;
+    Elf64_Word  sh_type;
+    Elf64_Off   sh_flags;
+    Elf64_Addr  sh_addr;
+    Elf64_Off   sh_offset;
+    Elf64_Off   sh_size;
+    Elf64_Word  sh_link;
+    Elf64_Word  sh_info;
+    Elf64_Off   sh_addralign;
+    Elf64_Off   sh_entsize;
+} Elf64_Shdr;
+
 #define NT_NETBSD_CORE_PROCINFO     1
 
 /* Note header in a PT_NOTE section */
@@ -204,6 +232,79 @@ typedef struct
    128 bit md5 or uuid
  */
 #define NT_GNU_BUILD_ID 3
+
+
+/* SunOS 5.x hardware/software capabilities */
+typedef struct
+{
+    Elf32_Word  c_tag;
+    union
+    {
+        Elf32_Word  c_val;
+        Elf32_Addr  c_ptr;
+    } c_un;
+} Elf32_Cap;
+
+typedef struct
+{
+    Elf64_Xword  c_tag;
+    union
+    {
+        Elf64_Xword c_val;
+        Elf64_Addr  c_ptr;
+    } c_un;
+} Elf64_Cap;
+
+/* SunOS 5.x hardware/software capability tags */
+#define CA_SUNW_NULL    0
+#define CA_SUNW_HW_1    1
+#define CA_SUNW_SF_1    2
+
+/* SunOS 5.x software capabilities */
+#define SF1_SUNW_FPKNWN 0x01
+#define SF1_SUNW_FPUSED 0x02
+#define SF1_SUNW_MASK   0x03
+
+/* SunOS 5.x hardware capabilities: sparc */
+#define AV_SPARC_MUL32          0x0001
+#define AV_SPARC_DIV32          0x0002
+#define AV_SPARC_FSMULD         0x0004
+#define AV_SPARC_V8PLUS         0x0008
+#define AV_SPARC_POPC           0x0010
+#define AV_SPARC_VIS            0x0020
+#define AV_SPARC_VIS2           0x0040
+#define AV_SPARC_ASI_BLK_INIT   0x0080
+#define AV_SPARC_FMAF           0x0100
+#define AV_SPARC_FJFMAU         0x0400
+#define AV_SPARC_IMA            0x0800
+
+/* SunOS 5.x hardware capabilities: 386 */
+#define	AV_386_FPU          0x00000001
+#define	AV_386_TSC          0x00000002
+#define	AV_386_CX8          0x00000004
+#define	AV_386_SEP          0x00000008
+#define	AV_386_AMD_SYSC     0x00000010
+#define	AV_386_CMOV         0x00000020
+#define	AV_386_MMX          0x00000040
+#define	AV_386_AMD_MMX      0x00000080
+#define	AV_386_AMD_3DNow    0x00000100
+#define	AV_386_AMD_3DNowx   0x00000200
+#define	AV_386_FXSR         0x00000400
+#define	AV_386_SSE          0x00000800
+#define	AV_386_SSE2         0x00001000
+#define	AV_386_PAUSE        0x00002000
+#define	AV_386_SSE3         0x00004000
+#define	AV_386_MON          0x00008000
+#define	AV_386_CX16         0x00010000
+#define	AV_386_AHF          0x00020000
+#define	AV_386_TSCP         0x00040000
+#define	AV_386_AMD_SSE4A    0x00080000
+#define	AV_386_POPCNT       0x00100000
+#define	AV_386_AMD_LZCNT    0x00200000
+#define	AV_386_SSSE3        0x00400000
+#define	AV_386_SSE4_1       0x00800000
+#define	AV_386_SSE4_2       0x01000000
+
 
 
 
