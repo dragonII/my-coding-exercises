@@ -135,10 +135,14 @@ typedef struct
 #define PT_NULL     0       /* p_type */
 #define PT_LOAD     1
 #define PT_DYNAMIC  2
+#define PT_INTERP   3
 #define PT_NOTE     4
 #define PT_SHLIB    5
 #define PT_PHDR     6
 #define PT_NUM      7
+
+
+#define NT_NETBSD_CORE_PROCINFO     1
 
 /* Note header in a PT_NOTE section */
 typedef struct elf_note
@@ -154,6 +158,24 @@ typedef struct
     Elf64_Word  n_descsz;   /* content size */
     Elf64_Word  n_type;     /* content type */
 } Elf64_Nhdr;
+
+/* Note used in ET_CORE */
+#define NT_PRSTATUS     1
+#define NT_PRFPREG      2
+#define NT_PRPSINFO     3
+#define NT_PRXREG       4
+#define NT_TASKSTRUCT   4
+#define NT_PLATFORM     5
+#define NT_AUXV         6
+
+
+/* Note types used in executables */
+/* NetBSD executables (name == "NetBSD") */
+#define NT_NETBSD_VERSION       1
+#define NT_NETBSD_EMULATIN      2
+#define NT_FREEBSD_VERSION      1
+#define NT_OPENBSD_VERSION      1
+#define NT_DRAGONFLY_VERSION    1
 
 
 /* GNU executables (name == "GNU")
