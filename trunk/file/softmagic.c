@@ -7,11 +7,12 @@
 #include <stdlib.h>
 
 
-//static int mget(struct magic_set*, const unsigned char*,
-//                struct magic*, size_t, size_t, unsigned int, int, int, int, int*);
-//static int mcopy(struct magic_set*, union VALUETYPE*, int, int,
-//                const unsigned char*, uint32_t, size_t, size_t);
-
+static int mget(struct magic_set*, const unsigned char*,
+                struct magic*, size_t, size_t, unsigned int, int, int, int, int*);
+static int mcopy(struct magic_set*, union VALUETYPE*, int, int,
+                const unsigned char*, uint32_t, size_t, size_t);
+static int match(struct magic_set*, struct magic*, uint32_t,
+                const unsigned char*, size_t, size_t, int, int, int, int*);
 
 static int
 mcopy(struct magic_set* ms, union VALUETYPE* p, int type, int indir,
