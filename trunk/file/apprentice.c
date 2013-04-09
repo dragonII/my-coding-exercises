@@ -595,6 +595,37 @@ file_pstring_length_size(const struct magic* m)
 }
 
 
+size_t file_pstring_get_length(const struct magic* m, const char* s)
+{
+    size_t len = 0;
+
+    switch(m->str_flags & PSTRING_LEN)
+    {
+        case PSTRING_1_LE:
+            len = *s;
+            break;
+        case PSTRING_2_LE:
+            len = (s[1] << 8) | s[0];
+            break;
+        case PSTRING_2_BE:
+            len = (s[0] << 8) | s[1];
+            break;
+        case PSTRING_4_LE:
+            len = (s[3] << 24) | (s[2] << 16) | (s[1] << 8) | s[0];
+            break;
+        case PSTRING_4_BE:
+            len = (s[0] << 24) | (s[1] << 16) | (s[2] << 8) | s[3];
+            break;
+        default:
+            abort();
+    }
+    if(m->str_flags & PSTRING_LENGTH_INCLUDES_ITSELF)
+        len -= file_pstring_length_size(m);
+
+    return len;
+}
+
+
 /* Convert a string containing C character escapes. Stop at an unescaped
    space or tab.
    Copy the converted version to "m->value.s", and the length in m->vallen.
@@ -2885,3 +2916,34 @@ void file_showstr(FILE* fp, const char* s, size_t len)
         }
     }
 }
+
+
+int file_magicfind(struct magic_set* ms, const char* name, struct mlist* v)
+{
+    uint32_t i, j;
+    struct mlist *mlist, *ml;
+
+    mlist = ms->mlist[1];
+
+    for(ml = mlist->next; ml != mlist; ml = ml->next)
+    {
+        struct magic* ma = ml->magic;
+        uint32_t nma = ml->nmagic;
+        for(i = 0; i < nma; i++)
+        {
+            if(ma[i].type != FILE_NAME)
+                continue;
+            if(strcmp(ma[i].value.s, name) == 0)
+            {
+                v->magic = &ma[i];
+                for(j = i + 1; j < nma; j++)
+                    if(ma[j].cont_level == 0)
+                        break;
+                v->nmagic = j - i;
+                return 0;
+            }
+        }
+    }
+    return -1;
+}
+
