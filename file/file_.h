@@ -399,10 +399,13 @@ int file_ascmagic_with_encoding(struct magic_set* ms, const unsigned char* buf,
                             const char* code, const char* type, int text);
 
 int file_pipe2file(struct magic_set*, int, const void*, size_t);
+int file_magicfind(struct magic_set*, const char*, struct mlist*);
 
 void file_badseek(struct magic_set* ms);
 void file_badread(struct magic_set* ms);
 
+size_t file_pstring_length_size(const struct magic*);
+size_t file_pstring_get_length(const struct magic*, const char*);
 
 
 #endif
