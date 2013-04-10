@@ -79,6 +79,25 @@ initialize_exit_failure(int status)
         exit_failure = status;
 }
 
+#include <fcntl.h>
+
+#include <dirent.h>
+#ifndef _D_EXACT_NAMLEN
+# define _D_EXACT_NAMLEN(dp) strlen((dp)->d_name)
+#endif
+
+enum
+{
+    NOT_AN_INODE_NUMBER = 0
+};
+
+#ifdef D_INO
+# define D_INO(dp) (dp)->d_ino
+#else
+/* Some system don't have inodes, so fake them to avoid lots of ifdefs */
+# define D_INO(dp) NOT_AN_INODE_NUMBER
+#endif
+
 /* Return a value that pluralizes the same way that N does, in all
    languages we know of. */
 static inline unsigned long int
