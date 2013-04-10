@@ -381,6 +381,8 @@ int file_softmagic(struct magic_set* ms, const unsigned char* buf,
 
 int cdf_timestamp_to_timespec(struct timespec*, cdf_timestamp_t);
 
+const char* file_fmttime(uint64_t, int, char*);
+
 int file_zmagic(struct magic_set* ms, int fd, const char* name,
                 const unsigned char* buf, size_t nbytes);
 int file_ascmagic(struct magic_set* ms, const unsigned char* buf, 
@@ -406,6 +408,6 @@ void file_badread(struct magic_set* ms);
 
 size_t file_pstring_length_size(const struct magic*);
 size_t file_pstring_get_length(const struct magic*, const char*);
-
+uint64_t file_signextend(struct magic_set*, struct magic*, uint64_t);
 
 #endif
