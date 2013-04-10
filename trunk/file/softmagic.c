@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <regex.h>
+#include <ctype.h>
 
 
 static int mget(struct magic_set*, const unsigned char*,
@@ -1023,6 +1024,441 @@ mget(struct magic_set* ms, const unsigned char* s, struct magic* m,
 }
 
 
+static uint64_t
+file_strncmp(const char* s1, const char* s2, size_t len, uint32_t flags)
+{
+    /* Convert the source args to unsigned here so that (1) the
+       compare will be unsigned as it is in strncmp() and (2) so
+       the ctype functions will work correctly without extra
+       casting */
+    const unsigned char* a = (const unsigned char*)s1;
+    const unsigned char* b = (const unsigned char*)s2;
+    uint64_t v;
+
+    /* what we want here is v = strncmp(s1, s2, len),
+       but ignoring any nulls */
+    v = 0;
+    if(0L == flags)
+    {
+        /* normal string: do it fast */
+        while(len--)
+            if((v = *b++ - *a++) != '\0')
+                break;
+    } else
+    {
+        /* compare the others */
+        while(len--)
+        {
+            if((flags & STRING_IGNORE_LOWERCASE) &&
+                islower(*a))
+            {
+                if((v = tolower(*b++) - *a++) != '\0')
+                    break;
+            } else if((flags & STRING_IGNORE_UPPERCASE) &&
+                isupper(*a))
+            {
+                if((v = toupper(*b++) - *a++) != '\0')
+                    break;
+            } else if((flags & STRING_COMPACT_WHITESPACE) &&
+                isspace(*a))
+            {
+                a++;
+                if(isspace(*b++))
+                {
+                    if(!isspace(*a))
+                        while(isspace(*b))
+                            b++;
+                } else
+                {
+                    v = 1;
+                    break;
+                }
+            } else if((flags & STRING_COMPACT_OPTIONAL_WHITESPACE) &&
+                isspace(*a))
+            {
+                a++;
+                while(isspace(*b))
+                    b++;
+            } else
+            {
+                if((v = *b++ - *a++) != '\0')
+                    break;
+            }
+        }
+    }
+    return v;
+}
+
+
+static uint64_t
+file_strncmp16(const char* a, const char* b, size_t len, uint32_t flags)
+{
+    /* The 16-bit string compare probably needs to be done
+       differently, especially if the flags are to be supported.
+     */
+    flags = 0;
+    return file_strncmp(a, b, len, flags);
+}
+
+
+static int
+check_fmt(struct magic_set* ms, struct magic* m)
+{
+    regex_t rx;
+    int rc;
+
+    if(strchr(m->desc, '%') == NULL)
+        return 0;
+
+    rc = regcomp(&rx, "%[-0-9\\.]*s", REG_EXTENDED | REG_NOSUB);
+    if(rc)
+    {
+        char errmsg[512];
+        regerror(rc, &rx, errmsg, sizeof(errmsg));
+        file_magerror(ms, "regex error %d, (%s)", rc, errmsg);
+        return -1;
+    } else
+    {
+        rc = regexec(&rx, m->desc, 0, 0, 0);
+        regfree(&rx);
+        return !rc;
+    }
+}
+
+
+static int32_t
+moffset(struct magic_set* ms, struct magic* m)
+{
+    switch(m->type)
+    {
+        case FILE_BYTE:
+            return CAST(int32_t, (ms->offset + sizeof(char)));
+        case FILE_SHORT:
+        case FILE_BESHORT:
+        case FILE_LESHORT:
+            return CAST(int32_t, (ms->offset + sizeof(short)));
+        case FILE_LONG:
+        case FILE_BELONG:
+        case FILE_LELONG:
+        case FILE_MELONG:
+            return CAST(int32_t, (ms->offset + sizeof(int32_t)));
+        case FILE_QUAD:
+        case FILE_BEQUAD:
+        case FILE_LEQUAD:
+            return CAST(int32_t, (ms->offset + sizeof(int64_t)));
+        case FILE_STRING:
+        case FILE_PSTRING:
+        case FILE_BESTRING16:
+        case FILE_LESTRING16:
+            if(m->reln == '=' || m->reln == '!')
+                return ms->offset + m->vallen;
+            else
+            {
+                union VALUETYPE* p = &ms->ms_value;
+                uint32_t t;
+                if(*m->value.s == '\0')
+                    p->s[strcspn(p->s, "\n")] = '\0';
+                t = CAST(uint32_t, (ms->offset + strlen(p->s)));
+                if(m->type == FILE_PSTRING)
+                    t += (uint32_t)file_pstring_length_size(m);
+                return t;
+            }
+        case FILE_DATE:
+        case FILE_BEDATE:
+        case FILE_LEDATE:
+        case FILE_MEDATE:
+            return CAST(int32_t, (ms->offset + sizeof(uint32_t)));
+        case FILE_LDATE:
+        case FILE_BELDATE:
+        case FILE_LELDATE:
+        case FILE_MELDATE:
+            return CAST(int32_t, (ms->offset + sizeof(uint32_t)));
+        case FILE_QDATE:
+        case FILE_BEQDATE:
+        case FILE_LEQDATE:
+            return CAST(int32_t, (ms->offset + sizeof(uint64_t)));
+        case FILE_QLDATE:
+        case FILE_BEQLDATE:
+        case FILE_LEQLDATE:
+            return CAST(int32_t, (ms->offset + sizeof(uint64_t)));
+        case FILE_FLOAT:
+        case FILE_BEFLOAT:
+        case FILE_LEFLOAT:
+            return CAST(int32_t, (ms->offset + sizeof(float)));
+        case FILE_DOUBLE:
+        case FILE_BEDOUBLE:
+        case FILE_LEDOUBLE:
+            return CAST(int32_t, (ms->offset + sizeof(double)));
+        case FILE_REGEX:
+            if((m->str_flags & REGEX_OFFSET_START) != 0)
+                return CAST(int32_t, ms->search.offset);
+            else
+                return CAST(int32_t, (ms->search.offset +
+                            ms->search.rm_len));
+        case FILE_SEARCH:
+            if((m->str_flags & REGEX_OFFSET_START) != 0)
+                return CAST(int32_t, ms->search.offset);
+            else
+                return CAST(int32_t, (ms->search.offset + m->vallen));
+        case FILE_DEFAULT:
+            return ms->offset;
+        case FILE_INDIRECT:
+            return ms->offset;
+
+        default:
+            return 0;
+    }
+}
+
+
+static int32_t
+mprint(struct magic_set* ms, struct magic* m)
+{
+    uint64_t v;
+    float vf;
+    double vd;
+    int64_t t = 0;
+    char buf[128], tbuf[26];
+    union VALUETYPE* p = &ms->ms_value;
+
+    switch(m->type)
+    {
+        case FILE_BYTE:
+            v = file_signextend(ms, m, (uint64_t)p->b);
+            switch(check_fmt(ms, m))
+            {
+                case -1:
+                    return -1;
+                case 1:
+                    snprintf(buf, sizeof(buf), "%c",
+                        (unsigned char)v);
+                    if(file_printf(ms, m->desc, buf) == -1)
+                        return -1;
+                    break;
+                default:
+                    if(file_printf(ms, m->desc, (unsigned char)v) == -1)
+                        return -1;
+                    break;
+            }
+            t = ms->offset + sizeof(char);
+            break;
+        case FILE_SHORT:
+        case FILE_BESHORT:
+        case FILE_LESHORT:
+            v = file_signextend(ms, m, (uint64_t)p->h);
+            switch(check_fmt(ms, m))
+            {
+                case -1:
+                    return -1;
+                case 1:
+                    snprintf(buf, sizeof(buf), "%hu",
+                        (unsigned short)v);
+                    if(file_printf(ms, m->desc, buf) == -1)
+                        return -1;
+                    break;
+                default:
+                    if(file_printf(ms, m->desc, (unsigned short)v) == -1)
+                        return -1;
+                    break;
+            }
+            t = ms->offset + sizeof(short);
+            break;
+        case FILE_LONG:
+        case FILE_BELONG:
+        case FILE_LELONG:
+        case FILE_MELONG:
+            v = file_signextend(ms, m, (uint64_t)p->l);
+            switch(check_fmt(ms, m))
+            {
+                case -1:
+                    return -1;
+                case 1:
+                    snprintf(buf, sizeof(buf), "%u", (uint32_t)v);
+                    if(file_printf(ms, m->desc, buf) == -1)
+                        return -1;
+                    break;
+                default:
+                    if(file_printf(ms, m->desc, (uint32_t)v) == -1)
+                        return -1;
+                    break;
+            }
+            t = ms->offset + sizeof(int32_t);
+            break;
+        case FILE_QUAD:
+        case FILE_BEQUAD:
+        case FILE_LEQUAD:
+            v = file_signextend(ms, m, p->q);
+            if(file_printf(ms, m->desc, (uint64_t)v) == -1)
+                return -1;
+            t = ms->offset + sizeof(int64_t);
+            break;
+        case FILE_STRING:
+        case FILE_PSTRING:
+        case FILE_BESTRING16:
+        case FILE_LESTRING16:
+            if(m->reln == '=' || m->reln == '!')
+            {
+                if(file_printf(ms, m->desc, m->value.s) == -1)
+                    return -1;
+                t = ms->offset + m->vallen;
+            } else
+            {
+                char* str = p->s;
+                /* compute t before we mangle the string? */
+                t = ms->offset + strlen(str);
+
+                if(*m->value.s == '\0')
+                    str[strcspn(str, "\n")] = '\0';
+                if(m->str_flags & STRING_TRIM)
+                {
+                    char* last;
+                    while(isspace((unsigned char)*str))
+                        str++;
+                    last = str;
+                    while(*last)
+                        last++;
+                    --last;
+                    while(isspace((unsigned char)*last))
+                        last--;
+                    *++last = '\0';
+                }
+                if(file_printf(ms, m->desc, str) == -1)
+                    return -1;
+
+                if(m->type == FILE_PSTRING)
+                    t += file_pstring_length_size(m);
+            }
+            break;
+        case FILE_DATE:
+        case FILE_BEDATE:
+        case FILE_LEDATE:
+        case FILE_MEDATE:
+            if(file_printf(ms, m->desc, file_fmttime(p->l, FILE_T_LOCAL,
+                        tbuf)) == -1)
+                return -1;
+            t = ms->offset + sizeof(uint32_t);
+            break;
+        case FILE_LDATE:
+        case FILE_BELDATE:
+        case FILE_LELDATE:
+        case FILE_MELDATE:
+            if(file_printf(ms, m->desc, file_fmttime(p->l, 0, tbuf)) == -1)
+                return -1;
+            t = ms->offset + sizeof(uint32_t);
+            break;
+        case FILE_QDATE:
+        case FILE_BEQDATE:
+        case FILE_LEQDATE:
+            if(file_printf(ms, m->desc, file_fmttime(p->q, FILE_T_LOCAL,
+                        tbuf)) == -1)
+                return -1;
+            t = ms->offset + sizeof(uint64_t);
+            break;
+        case FILE_QLDATE:
+        case FILE_BEQLDATE:
+        case FILE_LEQLDATE:
+            if(file_printf(ms, m->desc, file_fmttime(p->q, 0, tbuf)) == -1)
+                return -1;
+            t = ms->offset + sizeof(uint64_t);
+            break;
+        case FILE_QWDATE:
+        case FILE_BEQWDATE:
+        case FILE_LEQWDATE:
+            if(file_printf(ms, m->desc, file_fmttime(p->q, FILE_T_WINDOWS,
+                        tbuf)) == -1)
+                return -1;
+            t = ms->offset + sizeof(uint64_t);
+            break;
+        case FILE_FLOAT:
+        case FILE_BEFLOAT:
+        case FILE_LEFLOAT:
+            vf = p->f;
+            switch(check_fmt(ms, m))
+            {
+                case -1:
+                    return -1;
+                case 1:
+                    snprintf(buf, sizeof(buf), "%g", vf);
+                    if(file_printf(ms, m->desc, buf) == -1)
+                        return -1;
+                    break;
+                default:
+                    if(file_printf(ms, m->desc, vf) == -1)
+                        return -1;
+                    break;
+            }
+            t = m->offset + sizeof(float);
+            break;
+        case FILE_DOUBLE:
+        case FILE_BEDOUBLE:
+        case FILE_LEDOUBLE:
+            vd = p->d;
+            switch(check_fmt(ms, m))
+            {
+                case -1:
+                    return -1;
+                case 1:
+                    snprintf(buf, sizeof(buf), "%g", vd);
+                    if(file_printf(ms, m->desc, buf) == -1)
+                        return -1;
+                    break;
+                default:
+                    if(file_printf(ms, m->desc, vd) == -1)
+                        return -1;
+                    break;
+            }
+            t = ms->offset + sizeof(double);
+            break;
+        case FILE_REGEX:
+        {
+            char* cp;
+            int rval;
+
+            cp = strndup((const char*)ms->search.s, ms->search.rm_len);
+            if(cp == NULL)
+            {
+                file_oomem(ms, ms->search.rm_len);
+                return -1;
+            }
+            rval = file_printf(ms, m->desc, cp);
+            free(cp);
+
+            if(rval == -1)
+                return -1;
+
+            if((m->str_flags & REGEX_OFFSET_START))
+                t = ms->search.offset;
+            else
+                t = ms->search.offset + ms->search.rm_len;
+            break;
+        }
+        case FILE_SEARCH:
+            if(file_printf(ms, m->desc, m->value.s) == -1)
+                return -1;
+            if((m->str_flags & REGEX_OFFSET_START))
+                t = ms->search.offset;
+            else
+                t = ms->search.offset + m->vallen;
+            break;
+        case FILE_DEFAULT:
+            if(file_printf(ms, m->desc, m->value.s) == -1)
+                return -1;
+            t = ms->offset;
+            break;
+
+        case FILE_INDIRECT:
+        case FILE_USE:
+        case FILE_NAME:
+            t = ms->offset;
+            break;
+        default:
+            file_magerror(ms, "invalid m->type (%d) in mprint()", m->type);
+            return -1;
+    }
+    return (int32_t)t;
+}
+
+
 static int
 magiccheck(struct magic_set* ms, struct magic* m)
 {
@@ -1054,7 +1490,7 @@ magiccheck(struct magic_set* ms, struct magic* m)
         case FILE_LDATE:
         case FILE_BELDATE:
         case FILE_LELDATE:
-        case FILE_LELDATE:
+        case FILE_MELDATE:
             v = p->l;
             break;
         case FILE_QUAD:
@@ -1143,7 +1579,7 @@ magiccheck(struct magic_set* ms, struct magic* m)
             l = 0;
             v = file_strncmp16(m->value.s, p->s, (size_t)m->vallen, m->str_flags);
             break;
-        case FILE_SEARCH
+        case FILE_SEARCH:
         {
             /* search ms->search.s for the string m->value.s */
             size_t slen;
@@ -1253,14 +1689,16 @@ magiccheck(struct magic_set* ms, struct magic* m)
         case '!':
             matched = v != l;
             if((ms->flags & MAGIC_DEBUG) != 0)
-                fprintf(stderr, "%" INT64_T_FORMAT
-                        "u == *any* = 1\n", (unsigned long long)v);
+                fprintf(stderr, "%" INT64_T_FORMAT "u != %"
+                        INT64_T_FORMAT "u = %d\n", (unsigned long long)v,
+                        (unsigned long long)l, matched);
             break;
         case '=':
             matched = v == l;
             if((ms->flags & MAGIC_DEBUG) != 0)
-                fprintf(stderr, "%" INT64_T_FORMAT
-                        "u == *any* = 1\n", (unsigned long long)v);
+                fprintf(stderr, "%" INT64_T_FORMAT "u == %"
+                        INT64_T_FORMAT "u = %d\n", (unsigned long long)v,
+                        (unsigned long long)l, matched);
             break;
         case '>':
             if(m->flag & UNSIGNED)
@@ -1268,12 +1706,94 @@ magiccheck(struct magic_set* ms, struct magic* m)
                 matched = v > l;
                 if((ms->flags & MAGIC_DEBUG) != 0)
                     fprintf(stderr, "%" INT64_T_FORMAT
-                            "u == *any* = 1\n", (unsigned long long)v);
-                matched = 1;
-                break;
+                        "u > %" INT64_T_FORMAT "u = %d\n",
+                        (unsigned long long)v,
+                        (unsigned long long)l, matched);
+            } else
+            {
+                matched = (int64_t)v > (int64_t)l;
+                if((ms->flags & MAGIC_DEBUG) != 0)
+                    fprintf(stderr, "%" INT64_T_FORMAT 
+                        "d > %" INT64_T_FORMAT "d = %d\n",
+                        (long long)v, (long long)l, matched);
+            }
+            break;
+        case '<':
+            if(m->flag & UNSIGNED)
+            {
+                matched = v < l;
+                if((ms->flags & MAGIC_DEBUG) != 0)
+                    fprintf(stderr, "%" INT64_T_FORMAT
+                        "u < %" INT64_T_FORMAT "u = %d\n",
+                        (unsigned long long)v,
+                        (unsigned long long)l, matched);
+            } else
+            {
+                matched = (int64_t)v < (int64_t)l;
+                if((ms->flags & MAGIC_DEBUG) != 0)
+                    fprintf(stderr, "%" INT64_T_FORMAT 
+                        "d < %" INT64_T_FORMAT "d = %d\n",
+                        (long long)v, (long long)l, matched);
+            }
+            break;
+        case '&':
+            matched = (v & l) == l;
+            if((ms->flags & MAGIC_DEBUG) != 0)
+                fprintf(stderr, "((%" INT64_T_FORMAT "x & %"
+                    INT64_T_FORMAT "x) == %" INT64_T_FORMAT
+                    "x) = %d\n", (unsigned long long)v,
+                    (unsigned long long)l, (unsigned long long)l,
+                    matched);
+            break;
+        case '^':
+            matched = (v & l) != l;
+            if((ms->flags & MAGIC_DEBUG) != 0)
+                fprintf(stderr, "((%" INT64_T_FORMAT "x & %"
+                    INT64_T_FORMAT "x) != %" INT64_T_FORMAT
+                    "x) = %d\n", (unsigned long long)v,
+                    (unsigned long long)l, (unsigned long long)l,
+                    matched);
+            break;
+        default:
+            matched = 0;
+            file_magerror(ms, "cannot happen: invalid relation `%c'",
+                            m->reln);
+            return -1;
+    }
+    return matched;
+}
 
+
+static int
+handle_annotation(struct magic_set* ms, struct magic* m)
+{
+    if(ms->flags & MAGIC_APPLE)
+    {
+        if(file_printf(ms, "%.8s", m->apple) == -1)
+            return -1;
+        return 1;
+    }
+    if((ms->flags & MAGIC_MIME_TYPE) && m->mimetype[0])
+    {
+        if(file_printf(ms, "%s", m->mimetype) == -1)
+            return -1;
+        return 1;
+    }
+    return 0;
+}
                 
 
+static int
+print_sep(struct magic_set* ms, int firstline)
+{
+    if(ms->flags & MAGIC_MIME)
+        return 0;
+    if(firstline)
+        return 0;
+    /* we found another match
+       put a newline and '-' to do some simple formatting */
+    return file_printf(ms, "\n- ");
+}
 
 
 
