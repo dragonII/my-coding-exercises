@@ -7,5 +7,7 @@
 
 bool xstrtod(char* str, const char** ptr, double* result,
                 double (*convert)(char*, char**));
+bool xstrtold(char* str, const char** ptr, double* result,
+                double (*convert)(char*, char**));
 
 #endif
