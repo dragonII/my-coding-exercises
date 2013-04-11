@@ -23,5 +23,6 @@
    - In case of other error, return 0 and set errno, for example to ENOMEM. */
 
 double c_strtod(char* nptr, char** endptr);
+double c_strtold(char* nptr, char** endptr);
 
 #endif

@@ -8,6 +8,7 @@
 #include <string.h>
 
 #define C_STRTOD c_strtod
+#define C_STRTOD c_strtold
 #define DOUBLE double
 #define STRTOD_L strtod_l
 #define STRTOD strtod
