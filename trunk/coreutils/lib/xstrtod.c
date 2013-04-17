@@ -6,8 +6,10 @@
 #include <limits.h>
 #include <stdio.h>
 
-#define XSTRTOD xstrtod
-#define XSTRTOD xstrtold
+//#define XSTRTOD xstrtod
+//#define XSTRTOD xstrtold
+#define xstrtod XSTRTOD
+#define xstrtold XSTRTOD
 #define DOUBLE double
 
 /* An interface to a string-to-floating-pointe conversion function that
