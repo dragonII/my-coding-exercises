@@ -221,7 +221,7 @@ static void compare_files(char **infiles)
     struct linebuffer *thisline[2];
 
     /* all_line[i][alt[i][0]] also points to the linebuffer holding the
-       current line in file i. We kiip two buffers of history around so we
+       current line in file i. We keep two buffers of history around so we
        can look two lines back when we get to the end of a file */
     struct linebuffer *all_line[2][4];
 
