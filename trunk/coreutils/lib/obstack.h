@@ -89,7 +89,9 @@ Summary:
 #include <stdint.h>
 #include <stddef.h>
 
-
+#ifndef PTR_INT_TYPE
+#define PTR_INT_TYPE ptrdiff_t
+#endif
 
 struct _obstack_chunk               /* lives at front of each chunk */
 {
@@ -132,6 +134,7 @@ struct obstack      /* control current object in current chunk */
 int _obstack_begin(struct obstack *, int, int,
                void *(*)(long), void (*)(void *));
 
+void _obstack_newchunk(struct obstack *, int);
 
 
 /* To prevent prototype warnings provide complete argument list */
@@ -140,6 +143,23 @@ int _obstack_begin(struct obstack *, int, int,
                     (void *(*) (long)) obstack_chunk_alloc, \
                     (void (*) (void *)) obstack_chunk_free)
 
+#define obstack_1grow(OBSTACK, datum)                       \
+({                                                           \
+    struct obstack *__o = (OBSTACK);                        \
+    if(__o->next_free + 1 > __o->chunk_limit)               \
+        _obstack_newchunk(__o, 1);                          \
+    obstack_1grow_fast(__o, datum);                         \
+    (void) 0;                                               \
+})
+
+#define obstack_object_size(OBSTACK)                        \
+({                                                           \
+    struct obstack *__o = (OBSTACK);                  \
+    (unsigned)(__o->next_free - __o->object_base);          \
+})
+        
+
+#define obstack_1grow_fast(h, achar) (*((h)->next_free)++ = (achar))
 
 
 #endif
