@@ -6,16 +6,22 @@
 #include <error.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #include "system.h"
 #include "dircolors.h"
 #include "closeout.h"
 #include "quote.h"
 #include "obstack.h"
+#include "xstrndup.h"
+#include "c-strcase.h"
 
 
 #define PROGRAM_NAME "dircolors"
 #define AUTHORS "H. Peter Anvin"
+
+#define obstack_chunk_alloc malloc
+#define obstack_chunk_free free
 
 #ifndef STREQ
 #define STREQ(a, b)     (strcmp((a), (b)) == 0)
@@ -29,9 +35,35 @@ enum Shell_syntax
     SHELL_SYNTAX_UNKNOWN
 };
 
+#define APPEND_CHAR(c) obstack_1grow(&lsc_obstack, c)
+#define APPEND_TWO_CHAR_STRING(S)           \
+    do                                      \
+    {                                       \
+        APPEND_CHAR(S[0]);                  \
+        APPEND_CHAR(S[1]);                  \
+    } while(0)
+
 /* Accumulate in this obstack the value for the LS_COLOR environment
    variable */
 static struct obstack lsc_obstack;
+
+static const char *const slack_codes[] =
+{
+    "NORMAL", "NORM", "FILE", "RESET", "DIR", "LNK", "LINK",
+    "SYMLINK", "ORPHAN", "MISSING", "FIFO", "PIPE", "SOCK", "BLK", "BLOCK",
+    "CHR", "CHAR", "DOOR", "EXEC", "LEFT", "LEFTCODE", "RIGHT", "RIGHTCODE",
+    "END", "ENDCODE", "SUID", "SETUID", "SGID", "SETGID", "STICKY",
+    "OTHER_WRITABLE", "OWR", "STICKY_OTHER_WRITABLE", "OWT", "CAPABILITY",
+    "MULTIHARDLINK", "CLRTOEOL", NULL
+};
+
+
+static const char *const ls_codes[] =
+{
+    "no", "no", "fi", "rs", "di", "ln", "ln", "ln", "or", "mi", "pi", "pi",
+    "so", "bd", "bd", "cd", "cd", "do", "ex", "lc", "lc", "rc", "rc", "ec", "ec",
+    "su", "su", "sg", "sg", "st", "ow", "ow", "tw", "tw", "ca", "mh", "cl", NULL
+};
 
 static struct option long_options[] =
 {
@@ -93,6 +125,246 @@ guess_shell_syntax()
 
     return SHELL_SYNTAX_BOURNE;
 }
+
+
+static void
+parse_line(char const *line, char **keyword, char **arg)
+{
+    char const *p;
+    char const *keyword_start;
+    char const *arg_start;
+
+    *keyword = NULL;
+    *arg = NULL;
+
+    for(p = line; isspace(to_uchar(*p)); ++p)
+        continue;
+
+    /* ignore blank lines and shell-style comments */
+    if(*p == '\0' || *p == '#')
+        return;
+
+    keyword_start = p;
+
+    while(!isspace(to_uchar(*p)) && *p != '\0') ++p;
+
+    *keyword = xstrndup(keyword_start, p - keyword_start);
+    if(*p == '\0')
+        return;
+
+    do
+    {
+        ++p;
+    } while(isspace(to_uchar(*p)));
+
+    if(*p == '\0' || *p == '#')
+        return;
+
+    arg_start = p;
+
+    while(*p != '\0' && *p != '#')
+        ++p;
+
+    for(--p; isspace(to_uchar(*p)); --p)
+        continue;
+
+    ++p;
+
+    *arg = xstrndup(arg_start, p - arg_start);
+}
+
+
+/* Write a string to a standard out, while watching for "dangerous"
+   sequences like unescaped : and = characters */
+static void
+append_quoted(const char *str)
+{
+    bool need_backslash = true;
+
+    while(*str != '\0')
+    {
+        switch(*str)
+        {
+            case '\'':
+                APPEND_CHAR('\'');
+                APPEND_CHAR('\\');
+                APPEND_CHAR('\'');
+                need_backslash = true;
+                break;
+            case '\\':
+            case '^':
+                need_backslash = !need_backslash;
+                break;
+            case ':':
+            case '=':
+                if(need_backslash)
+                    APPEND_CHAR('\\');
+                    /* Fall through */
+            default:
+                need_backslash = true;
+                break;
+        }
+        APPEND_CHAR(*str);
+        ++str;
+    }
+}
+
+
+/* Read the file open on FP (with name FILENAME). First, look for a
+   `TERM name' directive where name matches the current terminal type.
+   Once found, translate and accumulate the associated directives onto
+   the global obstack lSC_OBSTACK. Giva a diagnosic
+   upon failure (unrecognized keyword is the only way to fail here).
+   Return true if successful */
+static bool
+dc_parse_stream(FILE *fp, const char *filename)
+{
+    size_t line_number = 0;
+    char const *next_G_line = G_line;
+    char *input_line = NULL;
+    size_t input_line_size = 0;
+    char const *line;
+    char const *term;
+    bool ok = true;
+
+    /* state for the parser */
+    enum {ST_TERMNO, ST_TERMYES, ST_TERMSURE, ST_GLOBAL } state = ST_GLOBAL;
+
+    /* get terminal type */
+    term = getenv("TERM");
+    if(term == NULL || *term == '\0')
+        term = "none";
+
+    while(1)
+    {
+        char *keywd, *arg;
+        bool unrecognized;
+
+        ++line_number;
+
+        if(fp)
+        {
+            if(getline(&input_line, &input_line_size, fp) <= 0)
+            {
+                free(input_line);
+                break;
+            }
+            line = input_line;
+        } else
+        {
+            if(next_G_line == G_line + sizeof G_line)
+                break;
+            line = next_G_line;
+            next_G_line += strlen(next_G_line) + 1;
+        }
+
+        parse_line(line, &keywd, &arg);
+
+        if(keywd == NULL)
+            continue;
+        if(arg == NULL)
+        {
+            error(0, 0, _("%s:%lu: invalid line; missing second token"),
+                    filename, (unsigned long int)line_number);
+            ok = false;
+            free(keywd);
+            continue;
+        }
+
+        unrecognized = false;
+        if(c_strcasecmp(keywd, "TERM") == 0)
+        {
+            if(STREQ(arg, term))
+                state = ST_TERMSURE;
+            else if(state != ST_TERMSURE)
+                state = ST_TERMNO;
+        } else
+        {
+            if(state == ST_TERMSURE)
+                state = ST_TERMYES;     /* another TERM can cancel */
+
+            if(state != ST_TERMNO)
+            {
+                if(keywd[0] == '.')
+                {
+                    APPEND_CHAR('*');
+                    append_quoted(keywd);
+                    APPEND_CHAR('=');
+                    append_quoted(arg);
+                    APPEND_CHAR(':');
+                } else if(keywd[0] == '*')
+                {
+                    append_quoted(keywd);
+                    APPEND_CHAR('=');
+                    append_quoted(arg);
+                    APPEND_CHAR(':');
+                } else if(c_strcasecmp(keywd, "OPTIONS") == 0
+                            || c_strcasecmp(keywd, "COLOR") == 0
+                            || c_strcasecmp(keywd, "EIGHTBIT") == 0)
+                {
+                    /* ignore */
+                } else
+                {
+                    int i;
+                    for(i = 0; slack_codes[i] != NULL; ++i)
+                        if(c_strcasecmp(keywd, slack_codes[i]) == 0)
+                            break;
+
+                    if(slack_codes[i] != NULL)
+                    {
+                        APPEND_TWO_CHAR_STRING(ls_codes[i]);
+                        APPEND_CHAR('=');
+                        append_quoted(arg);
+                        APPEND_CHAR(':');
+                    } else
+                    {
+                        unrecognized = true;
+                    }
+                }
+            } else
+            {
+                unrecognized = true;
+            }
+        }
+
+        if(unrecognized && (state == ST_TERMSURE || state == ST_TERMYES))
+        {
+            error(0, 0, _("%s:%lu: unrecognized keyword %s"),
+                    (filename ? quote(filename) : _("<internal>")),
+                    (unsigned long int)line_number, keywd);
+            ok = false;
+        }
+
+        free(keywd);
+        free(arg);
+    }
+    
+    return ok;
+}
+
+
+static bool
+dc_parse_file(const char *filename)
+{
+    bool ok;
+
+    if(!STREQ(filename, "-") && freopen(filename, "r", stdin) == NULL)
+    {
+        error(0, errno, "%s", filename);
+        return false;
+    }
+
+    ok = dc_parse_stream(stdin, filename);
+
+    if(fclose(stdin) != 0)
+    {
+        error(0, errno, "%s", quote(filename));
+        return false;
+    }
+
+    return ok;
+}
+
 
 
 int main(int argc, char **argv)
@@ -174,7 +446,7 @@ to select a shell syntax are mutually exclusive"));
         }
 
         obstack_init(&lsc_obstack);
-        if(argc === 0)
+        if(argc == 0)
             ok = dc_parse_stream(NULL, NULL);
         else
             ok = dc_parse_file(argv[0]);
