@@ -10,8 +10,9 @@
 #include <locale.h>
 #include <string.h>
 
-#include "bucomm.h"
-#include "include/bin-bugs.h"
+#include "libs/bucomm.h"
+#include "libs/bin-bugs.h"
+#include "libs/libiberty.h"
 
 typedef unsigned long bfd_size_type;
 
