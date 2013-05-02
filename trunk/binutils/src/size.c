@@ -76,6 +76,274 @@ static struct option long_options[] =
     {0, no_argument, 0, 0}
 };
 
+
+static void rprint_number(int width, bfd_size_type num)
+{
+    char buffer[40];
+
+    sprintf(buffer,
+        (radix == decimal ? "%lu" :
+        ((radix == octal) ? "0%lo" : "0x%lx")),
+        (unsigned long)num);
+
+    printf("%*s", width, buffer);
+}
+
+static bfd_size_type bsssize;
+static bfd_size_type datasize;
+static bfd_size_type textsize;
+
+static void berkeley_sum(bfd *abfd, sec_ptr sec,
+        void *ignore)
+{
+    flagword flags;
+    bfd_size_type size;
+
+    flags = bfd_get_section_flags(abfd, sec);
+    if((flags & SEC_ALLOC) == 0)
+        return;
+
+    size = bfd_get_section_size(sec);
+    if((flags & SEC_CODE) != 0 || (flags & SEC_READONLY) != 0)
+        textsize += size;
+    else if((flags & SEC_HAS_CONTENTS) != 0)
+        datasize += size;
+    else
+        bsssize += size;
+}
+
+static void print_berkeley_format(bfd *abfd)
+{
+    static int files_seen = 0;
+    bfd_size_type total;
+
+    bsssize = 0;
+    datasize = 0;
+    textsize = 0;
+
+    bfd_map_over_sections(abfd, berkeley_sum, NULL);
+
+    if(files_seen++ == 0)
+        puts((radix == octal) ? "   text\t  data\t  bss\t   oct\t   hex\tfilename" :
+                "   text\t  data\t  bss\t   dec\t   hex\tfilename");
+    total = textsize + datasize + bsssize;
+
+    if(show_totals)
+    {
+        total_textsize += textsize;
+        total_datasize += datasize;
+        total_bsssize += bsssize;
+    }
+
+    rprint_number(7, textsize);
+    putchar('\t');
+    rprint_number(7, datasize);
+    putchar('\t');
+    rprint_number(7, bsssize);
+    printf(((radix == octal) ? "\t%7lo\t%7lx\t" : "\t%7lu\t%7lx\t"),
+        (unsigned long)total, (unsigned long)total);
+
+    fputs(bfd_get_filename(abfd), stdout);
+
+    if(bfd_my_archive(abfd))
+        printf(" (ex %s)", bfd_get_filename(bfd_my_archive(abfd)));
+}
+
+
+bfd_size_type svi_total = 0;
+bfd_vma svi_maxvma = 0;
+int svi_namelen = 0;
+int svi_vmalen = 0;
+int svi_sizelen = 0;
+
+static void
+sysv_internal_sizer(bfd *file, sec_ptr sec,
+            void *ignore)
+{
+    bfd_size_type size = bfd_section_size(file, sec);
+
+    if(    !bfd_is_abs_section(sec)
+        && !bfd_is_com_section(sec)
+        && !bfd_is_und_section(sec))
+    {
+        int namelen = strlen(bfd_section_name(file, sec));
+
+        if(namelen > svi_namelen)
+            svi_namelen = namelen;
+
+        svi_total += size;
+
+        if(bfd_section_vma(file, sec) > svi_maxvma)
+            svi_maxvma = bfd_section_vma(file, sec);
+    }
+}
+
+
+/* this is what lexical functions are for */
+static int size_number(bfd_size_type num)
+{
+    char buffer[40];
+
+    sprintf(buffer,
+        (radix == decimal ? "%lu" :
+        ((radix == octal) ? "0%lo" : "0x%lx")),
+        (unsigned long)num);
+
+    return strlen(buffer);
+}
+
+
+static void print_sysv_format(bfd *file)
+{
+    /* size all of the columns */
+    svi_total = 0;
+    svi_maxvma = 0;
+    svi_namelen = 0;
+    bfd_map_over_sections(file, sysv_internal_sizer, NULL);
+    svi_vmalen = size_number((bfd_size_type)svi_maxvma);
+
+    if((size_t)svi_vmalen < sizeof("addr") - 1)
+        svi_vmalen = sizeof("addr") - 1;
+
+    svi_sizelen = size_number(svi_total);
+    if((size_t)svi_sizelen < sizeof("size") - 1)
+        svi_sizelen = sizeof("size") - 1;
+
+    svi_total = 0;
+    printf("%s  ", bfd_get_filename(file));
+
+    if(bfd_my_archive(file))
+        printf(" (ex %s)", bfd_get_filename(bfd_my_archive(file)));
+
+    printf(":\n%-*s    %*s    %*s\n", svi_namelen, "section",
+        svi_sizelen, "size", svi_vmalen, "addr");
+
+    bfd_map_over_sections(file, sysv_internal_printer, NULL);
+
+    printf("%-*s    ", svi_namelen, "Total");
+    rprint_number(svi_sizelen, svi_total);
+    printf("\n\n");
+}
+
+
+static void print_sizes(bfd *file)
+{
+    if(berkeley_format)
+        print_berkeley_format(file);
+    else
+        print_sysv_format(file);
+}
+
+
+/* display stats on file or archieve member ABFD */
+static void display_bfd(bfd *abfd)
+{
+    char **matching;
+
+    if(bfd_check_format_matches(abfd, bfd_object, &matching))
+    {
+        print_sizes(abfd);
+        printf("\n");
+        return;
+    }
+
+    if(bfd_get_error() == bfd_error_file_ambiguously_recognized)
+    {
+        bfd_nonfatal(bfd_get_filename(abfd));
+        list_matching_formats(matching);
+        free(matching);
+        return_code = 3;
+        return;
+    }
+
+    if(bfd_check_format_matches(abfd, bfd_core, &matching))
+    {
+        const char *core_cmd;
+
+        print_sizes(abfd);
+        fputs(" (core file", stdout);
+
+        core_cmd = bfd_core_file_failing_command(abfd);
+        if(core_cmd)
+            printf(" invoked as %s", core_cmd);
+
+        puts(")\n");
+        return;
+    }
+
+    bfd_nonfatal(bfd_get_filename(abfd));
+
+    if(bfd_get_error() == bfd_error_file_ambiguously_recognized)
+    {
+        list_matching_formats(matching);
+        free(matching);
+    }
+
+    return_code = 3;
+}
+
+
+static void display_archive(bfd *file)
+{
+    bfd *arfile = (bfd *)NULL;
+    bfd *last_arfile = (bfd *)NULL;
+
+    for(;;)
+    {
+        bfd_set_error(bfd_error_no_error);
+
+        arfile = bfd_openr_next_archived_file(file, arfile);
+        if(arfile == NULL)
+        {
+            if(bfd_get_error() != bfd_error_no_more_archived_files)
+            {
+                bfd_nonfatal(bfd_get_filename(file));
+                return_code = 2;
+            }
+            break;
+        }
+
+        display_bfd(arfile);
+
+        if(last_arfile != NULL)
+            bfd_close(last_arfile);
+        last_arfile = arfile;
+    }
+
+    if(last_arfile != NULL)
+        bfd_close(last_arfile);
+}
+
+
+static void
+display_file(char *filename)
+{
+    bfd *file;
+
+    if(get_file_size(filename) < 1)
+        return;
+
+    file = bfd_openr(filename, target);
+    if(file == NULL)
+    {
+        bfd_nonfatal(filename);
+        return_code = 1;
+        return;
+    }
+
+    if(bfd_check_format(file, bfd_archive))
+        display_archive(file);
+    else
+        display_bfd(file);
+
+    if(!bfd_close(file))
+    {
+        bfd_nonfatal(filename);
+        return_code = 1;
+        return;
+    }
+}
+
 int main(int argc, char **argv)
 {
     int temp;
