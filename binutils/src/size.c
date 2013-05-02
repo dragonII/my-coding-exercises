@@ -15,8 +15,6 @@
 #include "include/bin-bugs.h"
 #include "include/libiberty.h"
 
-typedef unsigned long bfd_size_type;
-
 /* program options */
 enum
 {
