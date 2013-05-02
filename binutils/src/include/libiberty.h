@@ -12,5 +12,8 @@
 /* set the program name used by xmalloc */
 void xmalloc_set_program_name(const char *);
 
+/* expand arguments in argv */
+void expandargv(int *, char ***);
+
 
 #endif
