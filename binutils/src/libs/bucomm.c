@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <bfd.h>
 
 char *program_name;
 
@@ -31,6 +32,18 @@ void list_supported_targets(const char *name, FILE *f)
         fprintf(f, " %s", targ_names[t]);
     fprintf(f, "\n");
     free(targ_names);
+}
+
+
+/* After FALSE return from bfd_check_format_matches with
+   bfd_get_error() == bfd_error_file_ambiguously_recognized, print
+   the possible matching targets */
+void list_matching_formats(char **p)
+{
+    fprintf(stderr, _("%s: Matching formats:"), program_name);
+    while(*p)
+        fprintf(stderr, " %s", *p++);
+    fputc('\n', stderr);
 }
 
 /* Set the default BFD target based on the configured target. Doing
