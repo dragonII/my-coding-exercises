@@ -193,6 +193,26 @@ static int size_number(bfd_size_type num)
 }
 
 
+static void sysv_internal_printer(bfd *file, sec_ptr sec,
+            void *ignore)
+{
+    bfd_size_type size = bfd_section_size(file, sec);
+
+    if(    ! bfd_is_abs_section(sec)
+        && ! bfd_is_com_section(sec)
+        && ! bfd_is_und_section(sec))
+    {
+        svi_total += size;
+
+        printf("%-*s    ", svi_namelen, bfd_section_name(file, sec));
+        rprint_number(svi_sizelen, size);
+        printf("    ");
+        rprint_number(svi_vmalen, bfd_section_vma(file, sec));
+        printf("\n");
+    }
+}
+
+
 static void print_sysv_format(bfd *file)
 {
     /* size all of the columns */
