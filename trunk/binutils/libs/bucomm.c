@@ -5,6 +5,7 @@
  */
 
 #include "include/bucomm.h"
+#include "include/libiberty.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <bfd.h>
+#include <stdarg.h>
+#include <string.h>
 
 char *program_name;
 
@@ -61,6 +64,25 @@ void set_default_bfd_target(void)
 }
 
 
+void report(const char *format, va_list args)
+{
+    fprintf(stderr, "%s: ", program_name);
+    vfprintf(stderr, format, args);
+    putc('\n', stderr);
+}
+
+
+void fatal(const char *format, ...)
+{
+    VA_OPEN(args, format);
+    VA_FIXEDARG(args, const char *, format);
+
+    report(format, args);
+    VA_CLOSE(args);
+    xexit(1);
+}
+
+
 void non_fatal (const char *format, ...)
 {
     VA_OPEN(args, format);
@@ -68,21 +90,6 @@ void non_fatal (const char *format, ...)
 
     report(format, args);
     VA_CLOSE(args);
-}
-
-
-/* Print the version number and copyright information, and exit. This
-   implements the --version option for the various programs */
-void print_version(const char *name)
-{
-    /* this output is intended to follow the GNUM standards document */
-    /* xgettext:c-format */
-    printf("GNU %s %s\n", name, BFD_VERSION_STRING);
-    printf(_("Copyright 2005 Free Software Foundation, Inc.\n"));
-    printf(_("\
-This program is free software; you may redistribute it under the terms of\n\
-the GNU General Public License. This program has absolutely no warranty.\n"));
-    exit(0);
 }
 
 
