@@ -1,7 +1,7 @@
 /* version.c -- binutils version information */
 
 #include <stdio.h>
-#include <bfd.h>
+#include <stdlib.h>
 
 #include "include/bucomm.h"
 #include "include/bfdver.h"

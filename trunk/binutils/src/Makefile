@@ -27,4 +27,4 @@ $(OBJ_DIR)/%.o: %.c
 
 
 clean:
-	${RM} -f $(OBJECTS) $(OBJ_DIR_BINARIES) $(BIN_DIR_BINARIES)
+	${RM} -f $(OBJECTS) $(OBJ_DIR_BINARIES) 

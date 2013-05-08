@@ -1,9 +1,36 @@
 /* create and destroy argument vectors (argv's) */
 
-#include "../include/libiberty.h"
+#include "include/libiberty.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <alloca.h>
+#include <ctype.h>
+#include <stdlib.h>
+
+#ifndef EOS
+#define EOS '\0'
+#endif
+
+#define INITIAL_MAXARGC 8   /* number of args + NULL in initial argv */
+
+
+/* Free an argument vector that was built using buildargv. Simply
+   scans through vector, freeing the memory for each argument until
+   the terminating NULL is found, and then frees vector itself. */
+void freeargv(char **vector)
+{
+    register char **scan;
+
+    if(vector != NULL)
+    {
+        for(scan = vector; *scan != NULL; scan++)
+        {
+            free(*scan);
+        }
+        free(vector);
+    }
+}
 
 
 /* Given a pointer to a string, parse the string extracting fields
@@ -59,7 +86,7 @@ char **buildargv(const char *input)
         do
         {
             /* pick off argv[argc] */
-            while(ISBLANK(*input))
+            while(isblank(*input))
             {
                 input++;
             }
@@ -69,7 +96,7 @@ char **buildargv(const char *input)
                 /* argv needs initialization, or expansion */
                 if(argv == NULL)
                 {
-                    maxargc == INITIAL_MAXARGC;
+                    maxargc = INITIAL_MAXARGC;
                     nargv = (char **)malloc(maxargc * sizeof(char *));
                 } else
                 {
@@ -95,7 +122,7 @@ char **buildargv(const char *input)
             arg = copybuf;
             while(*input != EOS)
             {
-                if(ISSPACE(*input) && !squote && !dquote && !bsquote)
+                if(isspace(*input) && !squote && !dquote && !bsquote)
                 {
                     break;
                 } else
@@ -161,7 +188,7 @@ char **buildargv(const char *input)
             argc++;
             argv[argc] = NULL;
 
-            while(ISSPACE(*input))
+            while(isspace(*input))
             {
                 input++;
             }
@@ -170,6 +197,43 @@ char **buildargv(const char *input)
 
     return argv;
 }
+
+
+/* Duplicate an argument vector. Simply scans through vector,
+   duplicating each argument until the terminating NULL is found.
+   Returns a pointer to the argument vector if successful. Returns
+   NULL if there is insufficient memory to complete building the
+   argument vector. */
+char **dupargv(char **argv)
+{
+    int argc;
+    char **copy;
+
+    if(argv == NULL)
+        return NULL;
+
+    /* the vector */
+    for(argc = 0; argv[argc] != NULL; argc++);
+    copy = (char **)malloc((argc + 1) * sizeof(char *));
+    if(copy == NULL)
+        return NULL;
+
+    /* the strings */
+    for(argc = 0; argv[argc] != NULL; argc++)
+    {
+        int len = strlen(argv[argc]);
+        copy[argc] = (char *)malloc(len + 1);
+        if(copy[argc] == NULL)
+        {
+            freeargv(copy);
+            return NULL;
+        }
+        strcpy(copy[argc], argv[argc]);
+    }
+    copy[argc] = NULL;
+    return copy;
+}
+
 
 void expandargv(int *argcp, char ***argvp)
 {
