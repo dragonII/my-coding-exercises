@@ -9,7 +9,7 @@ CC=cc
 RM=rm
 CFLAGS=-Wall -c -g -D_GNU_SOURCE
 LDFLAGS=-g
-INFLAGS=-I../lib
+#INFLAGS=-I../lib
 
 #DDEBUG=-D__DEBUG__
 
