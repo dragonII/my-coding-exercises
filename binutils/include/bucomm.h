@@ -24,6 +24,7 @@ void list_matching_formats(char **);
 void set_default_bfd_target(void);
 
 void non_fatal (const char *, ...);
+void fatal(const char *, ...);
 void bfd_nonfatal(const char *);
 
 void print_version(const char *);

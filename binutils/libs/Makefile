@@ -3,7 +3,7 @@
 #
 
 OBJ_DIR=../obj
-BIN_DIR=../bin
+#BIN_DIR=../bin
 
 CC=cc
 RM=rm

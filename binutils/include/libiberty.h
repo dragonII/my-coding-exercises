@@ -9,11 +9,22 @@
 #ifndef LIBIBERTY_H
 #define LIBIBERTY_H
 
+#ifndef PTR
+#define PTR void *
+#endif
+
+#include <sys/types.h>
+
 /* set the program name used by xmalloc */
 void xmalloc_set_program_name(const char *);
+void xmalloc_failed(size_t);
+PTR xmalloc(size_t);
+
 
 /* expand arguments in argv */
 void expandargv(int *, char ***);
 
+
+void xexit(int);
 
 #endif
