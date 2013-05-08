@@ -6,6 +6,7 @@
 
 #include "include/bucomm.h"
 #include "include/libiberty.h"
+#include "include/ansidecl.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +14,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
-#include <bfd.h>
 #include <stdarg.h>
 #include <string.h>
 

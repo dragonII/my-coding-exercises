@@ -3,6 +3,13 @@
 #include "libiberty.h"
 
 #include <unistd.h>
+#include <stdlib.h>
+
+static const char *name = "";
+
+/* The initial sbrk, set when the program name is set. Not used for win32
+   ports other than cygwin32 */
+static char *first_break = NULL;
 
 void xmalloc_set_program_name(const char *s)
 {
@@ -35,6 +42,22 @@ PTR xmalloc(size_t size)
     if(size == 0)
         size = 1;
     newmem = malloc(size);
+    if(!newmem)
+        xmalloc_failed(size);
+
+    return newmem;
+}
+
+PTR xrealloc(PTR oldmem, size_t size)
+{
+    PTR newmem;
+
+    if(size == 0)
+        size = 1;
+    if(!oldmem)
+        newmem = malloc(size);
+    else
+        newmem = realloc(oldmem, size);
     if(!newmem)
         xmalloc_failed(size);
 

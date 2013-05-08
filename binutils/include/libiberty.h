@@ -19,6 +19,7 @@
 void xmalloc_set_program_name(const char *);
 void xmalloc_failed(size_t);
 PTR xmalloc(size_t);
+PTR xrealloc(PTR, size_t);
 
 
 /* expand arguments in argv */

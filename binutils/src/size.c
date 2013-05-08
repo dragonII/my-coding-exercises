@@ -9,7 +9,6 @@
 #include <getopt.h>
 #include <locale.h>
 #include <string.h>
-#include <bfd.h>
 
 #include "include/bucomm.h"
 #include "include/bin-bugs.h"
