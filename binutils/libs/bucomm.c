@@ -1,8 +1,4 @@
-/* bucomm.c -- Bin Utils COmmon code.
-
-   This file is part of GNU Binutils.
-
- */
+/* bucomm.c -- Bin Utils COmmon code */
 
 #include "include/bucomm.h"
 #include "include/libiberty.h"

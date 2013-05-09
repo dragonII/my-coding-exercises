@@ -12,7 +12,7 @@
    VA_OPEN and VA_CLOSE are used *instead of* va_start and va_end.
    Immediately after VA_OPEN, put a sequence of VA_FIXEDARG calls
    corresponding to the list of fixed arguments. The use va_arg
-   normally to get the variable arguments, or pass your va_llist object
+   normally to get the variable arguments, or pass your va_list object
    around. You do not declare the va_list yourself; VA_OPEN does it 
    for you.
 
@@ -50,27 +50,21 @@
 #define VA_FIXEDARG(AP, T, N)   struct Qdmy
 
 
-int printf(const char *format, ...)
-{
-    int result;
-
-    //VA_OPEN(ap, format);
-    { 
-        va_list ap; 
-        va_start(ap, format); 
-        { 
-            struct Qdmy
-    //VA_FIXEDARG(ap, const char *, format);
-            struct Qdmy
-
-            result = vfprintf(stdout, format, ap);
-    //VA_CLOSE(ap);
-        } 
-        va_end(ap); 
-    }
-
-    return result;
-}
+//int printf(const char *format, ...)
+//{
+//    int result;
+//
+//    //VA_OPEN(ap, format);
+//    { va_list ap; va_start(ap, format); { struct Qdmy
+//    //VA_FIXEDARG(ap, const char *, format);
+//      struct Qdmy
+//
+//      result = vfprintf(stdout, format, ap);
+//    //VA_CLOSE(ap);
+//    } va_end(ap); }
+//
+//    return result;
+//}
 
 
 
