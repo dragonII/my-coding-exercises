@@ -61,6 +61,32 @@ typedef enum bfd_format
     bfd_type_end        /* mark the end, don't use it! */
 } bfd_format;
 
+/* Values that may appear in the flags field of a BFD. These also
+   appear in the object_flags field of the bfd_target structure, where
+   they indicate the set of flags used by that backend (not all flags
+   are meaningful for all object file formats) (FIXME: at the moment,
+   the object_flags values have mostly just been copied from backend
+   to another, and are not necessarily correct). */
+
+/* no flags */
+#define BFD_NO_FLAGS    0x00
+
+/* BFD contains relocation entries */
+#define HAS_RELOC       0x01
+
+/* BFD is directly executable */
+#define EXEC_P          0x02
+
+/* BFD has line number information (basically used for F_LNNO in a
+   COFF header) */
+#define HAS_LINENO      0x04
+
+/* BFD has dubugging information */
+#define HAS_DEBUG       0x08
+
+/* BFD has symbols */
+#define HAS_SYMS        0x10
+
 enum bfd_flavour
 {
     bfd_target_unknown_flavour,
@@ -3432,7 +3458,7 @@ enum bfd_architecture
 typedef enum bfd_reloc_code_real bfd_reloc_code_real_type;
 
 
-enum bfd_endian { BFD_EDNIAN_BIG, BFD_ENDIAN_LITTLE, BFD_ENDIAN_UNKNOWN };
+enum bfd_endian { BFD_ENDIAN_BIG, BFD_ENDIAN_LITTLE, BFD_ENDIAN_UNKNOWN };
 
 typedef struct bfd_section *sec_ptr;
 

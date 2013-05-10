@@ -3,6 +3,13 @@
 #include "include/bfd_.h"
 
 
+/* All knonw xvecs (even those that don't compile on all systems).
+   Alphabetized for easy reference.
+   They are listed a second time below, since
+   we can't intermix extern's and initializers */
+
+extern const bfd_target a_out_adobe_vec;
+
 static const bfd_target * const _bfd_target_vector[] =
 {
     /* This list is alphabetized to make it easy to compare
@@ -255,8 +262,6 @@ static const bfd_target * const _bfd_target_vector[] =
     
     NULL /* end of list marker */
 };
-
-
 
 
 
