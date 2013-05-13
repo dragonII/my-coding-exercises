@@ -14,8 +14,10 @@ typedef unsigned int flagword;  /* 32 bits of flags */
 typedef unsigned char bfd_byte;
 typedef unsigned long long bfd_vma;
 typedef unsigned long long symvalue;
+typedef bfd_vma ubfd_int64_t;
 typedef long long bfd_signed_vma;
 typedef unsigned long symindex;
+
 
 /* An offset into a file. BFD always uses the largest possible offset
    based on the build time availability of fseek, fseeko, or fseeko64 */
@@ -86,6 +88,45 @@ typedef enum bfd_format
 
 /* BFD has symbols */
 #define HAS_SYMS        0x10
+
+/* BFD has local symbols (basically used for F_LSYMS in a COFF
+   header) */
+#define HAS_LOCALS      0x20
+
+/* BFD is a dynamic object */
+#define DYNAMIC         0x40
+
+/* Text section is write protected (if D_PAGED is not set, this is
+   like an a.out NMAGIC file) (the linker sets this by default, but
+   clears it for -r or -N) */
+#define WP_TEXT         0x80
+
+/* BFD is dynamically paged (this is like an a.out ZMAGIC file) (the
+   linker sets this by default, but clears it for -r or -n or -N) */
+#define D_PAGED         0x100
+
+/* BFD is relaxable (this means that bfd_relax_section may be able to
+   do something) (sometimes bfd_relax_section can do something even if
+   this is not set) */
+#define BFD_IS_RELAXABLE    0x200
+
+/* This may be set before writing out a BFD to request using a
+   traditional format. For example, this is used to request that when
+   writing out an a.out object the symbols not be hashed to eliminate
+   duplicates */
+#define BFD_TRADITIONAL_FORMAT  0x400
+
+/* This flag indicates that the BFD contents are actually cached in
+   memory. If this is set, iostream points to a bfd_in_memory struct */
+#define BFD_IN_MEMORY       0x800
+
+/* The section in this BFD specify a memory page */
+#define HAS_LOAD_PAGE       0x1000
+
+/* This BFD has been created by the linker and doesn't correspond
+   to any input file */
+#define BFD_LINKER_CREATED  0x2000
+
 
 enum bfd_flavour
 {
@@ -3784,6 +3825,7 @@ typedef struct bfd_target
 
 
 const char **bfd_target_list(void);
+bfd_uint64_t bfd_getb64(const void *);
 
 
 
