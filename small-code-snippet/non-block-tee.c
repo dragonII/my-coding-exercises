@@ -75,6 +75,7 @@ nb_tee_files(int nfiles, const char **files)
     descriptors[0] = stdout;
     files[0] = "standard output";
     setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(descriptors[0], NULL, _IONBF, 0);
 
     for(i = 1; i <= nfiles; i++)
     {
