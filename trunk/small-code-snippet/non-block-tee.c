@@ -67,27 +67,24 @@ nb_tee_files(int nfiles, const char **files)
     for(i = nfiles; i >= 1; i--)
         files[i] = files[i - 1];
 
-    if(O_BINARY && !isatty(STDIN_FILENO))
-        freopen(NULL, "rb", stdin);
-    if(O_BINARY && !isatty(STDOUT_FILENO))
-        freopen(NULL, "wb", stdout);
+    //if(O_BINARY && !isatty(STDIN_FILENO))
+    freopen(NULL, "rb", stdin);
+    //if(O_BINARY && !isatty(STDOUT_FILENO))
+    freopen(NULL, "wb", stdout);
 
     descriptors[0] = stdout;
     files[0] = "standard output";
     setvbuf(stdout, NULL, _IONBF, 0);
     setvbuf(descriptors[0], NULL, _IONBF, 0);
 
-    for(i = 1; i <= nfiles; i++)
+    descriptors[1] = fopen(files[1], mode_string);
+    if(descriptors[1] == NULL)
     {
-        descriptors[i] = (STREQ(files[i], "-")
-                            ? stdout
-                            : fopen(files[i], mode_string));
-        if(descriptors[i] == NULL)
-        {
-            error(0, errno, "%s", files[i]);
-            ok = false;
-        } else
-            setvbuf(descriptors[i], NULL, _IONBF, 0);
+        error(0, errno, "%s", files[1]);
+        ok = false;
+    } else
+    {
+        setvbuf(descriptors[1], NULL, _IONBF, 0);
     }
 
     while(1)
@@ -100,16 +97,20 @@ nb_tee_files(int nfiles, const char **files)
         if(bytes_read <= 0)
             break;
 
-        /* Write to all NFILES + 1 descriptors.
+        /* Write to all 2 descriptors.
            Standard output is the first one */
+        assert(nfiles == 1);
         for(i = 0; i <= nfiles; i++)
-            if(descriptors[i] //&& fflush(descriptors[i])
+        {
+            if(i == 0) fflush(descriptors[i]); // fflush stdout
+            if(descriptors[i]
                 && fwrite(buffer, bytes_read, 1, descriptors[i]) != 1)
             {
                 error(0, errno, "%s", files[i]);
                 descriptors[i] = NULL;
                 ok = false;
             }
+        }
     }
 
     if(bytes_read == -1)
