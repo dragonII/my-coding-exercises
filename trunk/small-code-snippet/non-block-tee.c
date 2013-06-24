@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <error.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #define PROGRAM_NAME "nb_tee"
 
@@ -50,11 +51,13 @@ void usage(int status)
 static bool
 nb_tee_files(int nfiles, const char **files)
 {
+    //int flags;
     FILE **descriptors;
     char buffer[BUFSIZ];
     ssize_t bytes_read;
     int i;
     bool ok = true;
+    append = true;
     char *mode_string = 
             (O_BINARY
              ? (append ? "ab" : "wb")
@@ -67,10 +70,10 @@ nb_tee_files(int nfiles, const char **files)
     for(i = nfiles; i >= 1; i--)
         files[i] = files[i - 1];
 
-    //if(O_BINARY && !isatty(STDIN_FILENO))
-    freopen(NULL, "rb", stdin);
-    //if(O_BINARY && !isatty(STDOUT_FILENO))
-    freopen(NULL, "wb", stdout);
+    if(O_BINARY && !isatty(STDIN_FILENO))
+        freopen(NULL, "rb", stdin);
+    if(O_BINARY && !isatty(STDOUT_FILENO))
+        freopen(NULL, "wb", stdout);
 
     descriptors[0] = stdout;
     files[0] = "standard output";
@@ -87,9 +90,15 @@ nb_tee_files(int nfiles, const char **files)
         setvbuf(descriptors[1], NULL, _IONBF, 0);
     }
 
+    //flags = fcntl(0, F_GETFD, 0);
+    //fcntl(0, F_SETFD, flags | O_NONBLOCK);
     while(1)
     {
+        printf("Before read\n");
+        fflush(stdin);
         bytes_read = read(0, buffer, sizeof(buffer));
+        //bytes_read = read(0, buffer, 2);
+        printf("After read, bytes_read = %d\n", bytes_read);
 #ifdef EINTR
         if(bytes_read < 0 && errno == EINTR)
             continue;
@@ -102,7 +111,7 @@ nb_tee_files(int nfiles, const char **files)
         assert(nfiles == 1);
         for(i = 0; i <= nfiles; i++)
         {
-            if(i == 0) fflush(descriptors[i]); // fflush stdout
+            printf("i = %d, buffer: %s\n", i, buffer);
             if(descriptors[i]
                 && fwrite(buffer, bytes_read, 1, descriptors[i]) != 1)
             {
