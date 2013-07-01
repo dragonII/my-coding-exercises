@@ -15,6 +15,8 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 
+#include "dowall.h"
+
 static sigjmp_buf jbuf;
 
 
