@@ -12,6 +12,8 @@
 #include <pwd.h>
 #include <syslog.h>
 
+#include "dowall.h"
+
 char *Version = "wall 1-Jul-2013 longwa@cisco.com";
 #define MAXLEN  4096
 #define MAXLINES  20
