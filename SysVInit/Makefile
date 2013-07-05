@@ -16,6 +16,8 @@ INSTALL		= install -o $(BIN_OWNER) -g $(BIN_GROUP)
 MANDIR		= /usr/share/man
 
 
+all:		wall shutdown
+
 wall:		dowall.o wall.o dowall.h
 		$(CC) $(LDFLAGS) -o $@ dowall.o wall.o
 shutdown:	dowall.o shutdown.o dowall.h
