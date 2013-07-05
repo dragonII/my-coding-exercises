@@ -18,6 +18,9 @@ MANDIR		= /usr/share/man
 
 wall:		dowall.o wall.o dowall.h
 		$(CC) $(LDFLAGS) -o $@ dowall.o wall.o
+shutdown:	dowall.o shutdown.o dowall.h
+		$(CC) $(LDFLAGS) -o $@ dowall.o wall.o
+
 
 clean:		
 		rm -f *.o $(BIN) $(SBIN) $(USRBIN)

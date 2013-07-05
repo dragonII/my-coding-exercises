@@ -4,6 +4,21 @@
 #ifndef __INITREQ_HEADER__
 #define __INITREQ_HEADER__
 
+#define INIT_FIFO           "/dev/initctl"
+
+#define INIT_MAGIC              0x03091969
+#define INIT_CMD_START          0
+#define INIT_CMD_RUNLVL         1
+#define INIT_CMD_POWERFAIL      2
+#define INIT_CMD_POWERFAILNOW   3
+#define INIT_CMD_POWEROK        4
+#define INIT_CMD_BSD            5
+#define INIT_CMD_SETENV         6
+#define INIT_CMD_UNSETENV       7
+
+#define INIT_CMD_CHANGECONS     12345
+
+
 #ifdef MAXHOSTNAMELEN
 # define INITRQ_HLEN    MAXHOSTNAMELEN
 #else

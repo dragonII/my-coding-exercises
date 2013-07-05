@@ -15,6 +15,7 @@
 #include <time.h>
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -24,6 +25,7 @@
 
 #include "dowall.h"
 #include "initreq.h"
+#include "paths.h"
 
 char *Version = "shutdown for my test, 1-Jul-2013 longwa@cisco.com";
 
@@ -57,7 +59,7 @@ void hardsleep(int secs)
     ts.tv_nsec = 0;
 
     while(nanosleep(&ts, &rem) < 0 && errno == EINTR)
-        rs = rem;
+        ts = rem;
 }
 
 /* Break off an already running shutdown */
