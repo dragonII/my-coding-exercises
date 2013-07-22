@@ -15,4 +15,3 @@ echo "total   H=$h_total"
 
 total=`expr $c_total + $h_total`
 echo "total ALL=$total"
-
