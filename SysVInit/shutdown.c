@@ -26,6 +26,8 @@
 #include "dowall.h"
 #include "initreq.h"
 #include "paths.h"
+#include "utmp_.h"
+#include "reboot_.h"
 
 char *Version = "shutdown for my test, 1-Jul-2013 longwa@cisco.com";
 
@@ -226,7 +228,7 @@ int spawn(int noerr, char *prog, ...)
     argv[i] = NULL;
     va_end(ap);
 
-    chdir("/");
+    rc = chdir("/");
     environ = clean_env;
 
     execvp(argv[0], argv);
