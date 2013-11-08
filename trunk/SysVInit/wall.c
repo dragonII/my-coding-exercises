@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 
     openlog("wall", LOG_PID, LOG_USER);
     syslog(LOG_INFO, "wall: user %s broadcast %d lines (%d chars)",
-                whoami, i, strlen(buf));
+                whoami, i, (int)strlen(buf));
     closelog();
 
     unsetenv("TZ");

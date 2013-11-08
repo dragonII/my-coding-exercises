@@ -3,6 +3,8 @@
 #ifndef UTMP_HEADER__
 #define UTMP_HEADER__
 
+#include <utmp.h>
+
 /* Log an event in the wtmp file (reboot, runlevel) */
 void write_wtmp(char *user,     /* name of user */
                 char *id,       /* inittab ID */
