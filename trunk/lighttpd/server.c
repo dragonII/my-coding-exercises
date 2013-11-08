@@ -20,6 +20,8 @@
 #include <sys/resource.h>
 #include <sys/prctl.h>
 
+#include "base.h"
+
 static int l_issetugid(void) {
     return (geteuid() != getuid() || getegid() != getgid());
 }
