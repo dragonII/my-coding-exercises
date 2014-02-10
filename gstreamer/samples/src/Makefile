@@ -14,15 +14,18 @@ INFLAGS=-I/opt/GStreamer/include/gstreamer-1.0 -I/usr/include/glib-2.0 -I/usr/li
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
 
-TARGET=initializing
+#TARGET=initializing
 
-all: $(TARGET)
+all: $(OBJECTS)
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) $(LDFLAGS) -o $(BIN_DIR)/$@
+#initializing: initializing.o
+#	$(CC) $(OBJECTS) $(LDFLAGS) -o $(BIN_DIR)/$@
+
+#$(TARGET): $(OBJECTS)
+#	$(CC) $(OBJECTS) $(LDFLAGS) -o $(BIN_DIR)/$@
 
 $(OBJ_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(INFLAGS) $< -o $@
 
 clean:
-	${RM} -f $(OBJ_DIR)/$(OBJECTS) $(BIN_DIR)/${TARGET}
+	${RM} -f $(OBJ_DIR)/$(OBJECTS) $(BIN_DIR)/*
