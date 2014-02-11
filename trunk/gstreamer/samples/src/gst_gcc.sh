@@ -1,3 +1,3 @@
 #!/bin/sh
 
-gcc $@ -L/opt/GStreamer/lib -lgstreamer-1.0
+gcc $@ -L/usr/local/lib -lgstreamer-1.0
