@@ -97,7 +97,7 @@ int main(int argc, char **argv)
     }
     if(!demuxer)
     {
-        g_printerr("Create source failed\n");
+        g_printerr("Create demuxer failed\n");
         return -1;
     }
     if(!decoder)
