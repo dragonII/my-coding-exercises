@@ -56,6 +56,22 @@ on_pad_added(GstElement *element,
     gst_object_unref(sinkpad);
 }
 
+static gboolean
+cb_print_position(GstElement *pipeline)
+{
+    gint64 pos, len;
+
+    if(gst_element_query_position(pipeline, GST_FORMAT_TIME, &pos)
+        && gst_element_query_duration(pipeline, GST_FORMAT_TIME, &len))
+    {
+        g_print("Time: %" GST_TIME_FORMAT " / %" GST_TIME_FORMAT "\r",
+                GST_TIME_ARGS(pos), GST_TIME_ARGS(len));
+    }
+
+    /* call me again */
+    return TRUE;
+}
+
 int main(int argc, char **argv)
 {
     GMainLoop *loop;
@@ -152,6 +168,8 @@ int main(int argc, char **argv)
 
     /* iterate */
     g_print("Running...\n");
+
+    g_timeout_add(200, (GSourceFunc)cb_print_position, pipeline);
     g_main_loop_run(loop);
 
     /* out of the main loop, clean up nicely */
