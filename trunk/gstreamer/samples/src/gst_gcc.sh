@@ -1,3 +1,3 @@
 #!/bin/sh
 
-gcc $@ -L/usr/local/lib -lgstreamer-1.0
+gcc -Wall $@ $(pkg-config --cflags --libs gstreamer-1.0)
