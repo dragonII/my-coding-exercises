@@ -1,6 +1,8 @@
 #include <gst/gst.h>
 #include <pthread.h>
 
+typedef struct _TestRTPoolClass TestRTPoolClass;
+
 typedef struct
 {
     pthread_t thread;
