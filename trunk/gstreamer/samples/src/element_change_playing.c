@@ -2,8 +2,7 @@
 
 static gchar *opt_effects = NULL;
 
-#define DEFAULT_EFFECTS "identity,exclusion,navigationtest," \
-            "agingtv,videoflip,vertigotv,gaussianblur,shagadelictv,edgetv"
+#define DEFAULT_EFFECTS "identity,exclusion,navigationtest,agingtv,videoflip,vertigotv,gaussianblur,shagadelictv,edgetv"
 
 static GstPad *blockpad;
 static GstElement *conv_before;
@@ -22,7 +21,9 @@ event_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
     if(GST_EVENT_TYPE(GST_PAD_PROBE_INFO_DATA(info)) != GST_EVENT_EOS)
         return GST_PAD_PROBE_OK;
 
+    /* EOS event received */
     gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
+    g_print("BLOCK_PROBE removed after when EOS\n");
 
     /* push current effect back info the queue */
     g_queue_push_tail(&effects, gst_object_ref(cur_effect));
@@ -41,7 +42,7 @@ event_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
     gst_element_set_state(cur_effect, GST_STATE_NULL);
 
     /* remove unlinks automatically */
-    GST_DEBUG_OBJECT(pipeline, "removing %s" GST_PTR_FORMAT, cur_effect);
+    GST_DEBUG_OBJECT(pipeline, "removing %" GST_PTR_FORMAT, cur_effect);
     gst_bin_remove(GST_BIN(pipeline), cur_effect);
 
     GST_DEBUG_OBJECT(pipeline, "adding  %" GST_PTR_FORMAT, next);
@@ -89,10 +90,12 @@ pad_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
     GstPad *srcpad, *sinkpad;
 
-    GST_DEBUG_OBJECT(pad, "pad is blocked now");
+    //GST_DEBUG_OBJECT(pad, "pad is blocked now");
+    g_print("%s is blocked now\n", GST_OBJECT_NAME(pad));
 
     /* remove the probe first */
     gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
+    g_print("BLOCK_PROBE removed\n");
 
     /* install new probe for EOS */
     srcpad = gst_element_get_static_pad(cur_effect, "src");
@@ -113,6 +116,7 @@ pad_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 static gboolean
 timeout_cb(gpointer user_data)
 {
+    g_print("In timeout_cb\n");
     gst_pad_add_probe(blockpad, GST_PAD_PROBE_TYPE_BLOCK_DOWNSTREAM,
             pad_probe_cb, user_data, NULL);
 
@@ -186,7 +190,7 @@ int main(int argc, char **argv)
 
     gst_bus_add_watch(GST_ELEMENT_BUS(pipeline), bus_cb, loop);
 
-    g_timeout_add_seconds(1, timeout_cb, loop);
+    g_timeout_add_seconds(2, timeout_cb, loop);
 
     g_main_loop_run(loop);
 
