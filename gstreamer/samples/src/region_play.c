@@ -143,9 +143,19 @@ cb_message(GstBus           *bus,
     switch(GST_MESSAGE_TYPE(message))
     {
         case GST_MESSAGE_ERROR:
+        {
+            GError *err;
+            gchar *debug;
+
+            gst_message_parse_error(message, &err, &debug);
             g_print("we received an error!\n");
+            g_print("Error: %s\n", err->message);
+            g_error_free(err);
+            g_free(debug);
+
             g_main_loop_quit(loop);
             break;
+        }
         case GST_MESSAGE_EOS:
             g_print("we reached EOS\n");
             g_main_loop_quit(loop);
@@ -177,12 +187,40 @@ cb_message(GstBus           *bus,
             break;
     }
 }
-                
+
+static gboolean
+idle_exit_loop(gpointer data)
+{
+    //g_main_loop_quit((GMainLoop *)data);
+    /* once */
+    return FALSE;
+}
+
+
+static void
+cb_typefound(GstElement *typefind,
+             guint      probability,
+             GstCaps    *caps,
+             gpointer   data)
+{
+    GMainLoop *loop = data;
+    gchar *type;
+    
+    type = gst_caps_to_string(caps);
+    g_print("Media type %s found, probability %d%%\n", type, probability);
+    g_free(type);
+    
+    /* since we connect to a signal in the pipeline thread context, we need
+     * to set an idle handler to exit the main loop in the mainloop context.
+     * Normally, your app should not need to worry about such things */
+    g_idle_add(idle_exit_loop, loop);
+}
 
 
 int main(int argc, char **argv)
 {
     GstElement *pipeline, *src, *csp, *vs, *sink;
+    GstElement *typefind;
 
     gst_init(&argc, &argv);
     loop = g_main_loop_new(NULL, FALSE);
@@ -199,6 +237,9 @@ int main(int argc, char **argv)
     bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
     gst_bus_add_signal_watch(bus);
     g_signal_connect(bus, "message", (GCallback)cb_message, pipeline);
+
+    typefind = gst_element_factory_make("typefind", "typefinder");
+    g_signal_connect(typefind, "have-type", G_CALLBACK(cb_typefound), loop);
 
     src = gst_element_factory_make("uridecodebin", "src");
     if(src == NULL)
