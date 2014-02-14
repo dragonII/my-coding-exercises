@@ -16,6 +16,7 @@ dec_counter(GstElement *pipeline)
     {
         /* all probes blocked and no-more-pads signaled, post
          * message on the bus */
+        g_print("Setting prerolled to *TRUE*\n");
         prerolled = TRUE;
 
         gst_bus_post(bus, gst_message_new_application(GST_OBJECT_CAST(pipeline),
@@ -43,6 +44,32 @@ cb_blocked(GstPad          *pad,
     return GST_PAD_PROBE_OK;
 }
 
+/* called when src has data */
+static GstPadProbeReturn
+cb_src_have_data(GstElement *element,
+             GstPadProbeInfo *info,
+             gpointer   user_data)
+{
+    GstMapInfo map;
+    GstBuffer *buffer;
+
+    g_print("sinkpad has buffer now\n");
+    
+    buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+    
+    gst_buffer_map(buffer, &map, GST_MAP_WRITE);
+    
+    //ptr = (guint16 *)map.data;
+    
+    gst_buffer_unmap(buffer, &map);
+    
+    GST_PAD_PROBE_INFO_DATA(info) = buffer;
+    
+    return GST_PAD_PROBE_OK;
+}
+
+
+
 /* called when uridecodebin has a new pad */
 static void
 cb_pad_added(GstElement *element,
@@ -59,9 +86,38 @@ cb_pad_added(GstElement *element,
     gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BLOCK_DOWNSTREAM,
         (GstPadProbeCallback)cb_blocked, pipeline, NULL);
 
+    gst_pad_add_probe(sinkpad, GST_PAD_PROBE_TYPE_BUFFER,
+                (GstPadProbeCallback)cb_src_have_data, NULL, NULL);
+
     /* try to link the video pad */
     gst_pad_link(pad, sinkpad);
 }
+
+/* called when sinkpad has data */
+static GstPadProbeReturn
+cb_sink_have_data(GstElement *element,
+             GstPadProbeInfo *info,
+             gpointer   user_data)
+{
+    GstMapInfo map;
+    GstBuffer *buffer;
+
+    g_print("sinkpad has buffer now\n");
+    
+    buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+    
+    gst_buffer_map(buffer, &map, GST_MAP_WRITE);
+    
+    //ptr = (guint16 *)map.data;
+    
+    gst_buffer_unmap(buffer, &map);
+    
+    GST_PAD_PROBE_INFO_DATA(info) = buffer;
+    
+    return GST_PAD_PROBE_OK;
+}
+
+
 
 /* called when uridecodebin has created all pads */
 static void
@@ -175,6 +231,9 @@ int main(int argc, char **argv)
      * blocked. Start with 1 that is decremented when no-more-pads
      * is signaled to make sure that we only post the message
      * after no-more-pads */
+
+    gst_pad_add_probe(sinkpad, GST_PAD_PROBE_TYPE_BUFFER,
+                (GstPadProbeCallback)cb_sink_have_data, NULL, NULL);
 
     g_atomic_int_set(&counter, 1);
 
