@@ -12,7 +12,6 @@ static GstElement *pipeline;
 
 static GQueue effects = G_QUEUE_INIT;
 
-
 static GstPadProbeReturn
 event_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
