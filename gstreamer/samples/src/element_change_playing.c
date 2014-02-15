@@ -2,8 +2,8 @@
 
 static gchar *opt_effects = NULL;
 
-//#define DEFAULT_EFFECTS "navigationtest,identity,exclusion,navigationtest,agingtv,videoflip,vertigotv,gaussianblur,shagadelictv,edgetv"
-#define DEFAULT_EFFECTS "edgetv,navigationtest,identity,videoflip,gaussianblur"
+//#define DEFAULT_EFFECTS "navigationtest,identity,exclusion,agingtv,videoflip,vertigotv,gaussianblur,shagadelictv,edgetv"
+#define DEFAULT_EFFECTS "shagadelictv,vertigotv,exclusion,agingtv,edgetv,navigationtest,videoflip,identity,gaussianblur"
 
 static GstPad *blockpad;
 static GstElement *conv_before;
@@ -18,7 +18,7 @@ event_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
     GMainLoop *loop = user_data;
     GstElement *next;
-    gboolean ret;
+    //gboolean ret;
     //GstStateChangeReturn stateret;
 
     if(GST_EVENT_TYPE(GST_PAD_PROBE_INFO_DATA(info)) != GST_EVENT_EOS)
@@ -28,9 +28,9 @@ event_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
     }
 
     /* EOS event received */
-    g_print("Blocking effect's src pad\n");
+    //g_print("Blocking effect's src pad\n");
     gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
-    g_print("BLOCK_PROBE removed after when EOS\n");
+    //g_print("BLOCK_PROBE removed after when EOS\n");
 
     /* push current effect back info the queue */
     //g_queue_push_tail(&effects, gst_object_ref(cur_effect));
@@ -57,18 +57,18 @@ event_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 
     GST_DEBUG_OBJECT(pipeline, "adding  %" GST_PTR_FORMAT, next);
     g_print("adding %s\n", GST_OBJECT_NAME(next));
-    ret = gst_bin_add(GST_BIN(pipeline), next);
-    if(ret == FALSE)
-        g_print("Add failed\n");
-    else
-        g_print("Add successful\n");
+    gst_bin_add(GST_BIN(pipeline), next);
+    //if(ret == FALSE)
+    //    g_print("Add failed\n");
+    //else
+    //    g_print("Add successful\n");
 
     GST_DEBUG_OBJECT(pipeline, "linking...");
-    ret = gst_element_link_many(conv_before, next, conv_after, NULL);
-    if(ret == FALSE)
-        g_print("Link failed\n");
-    else
-        g_print("Link successful\n");
+    gst_element_link_many(conv_before, next, conv_after, NULL);
+    //if(ret == FALSE)
+    //    g_print("Link failed\n");
+    //else
+    //    g_print("Link successful\n");
 
     gst_element_set_state(next, GST_STATE_PLAYING);
     //stateret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
@@ -112,12 +112,12 @@ pad_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
     GstPad *srcpad, *sinkpad;
 
     //GST_DEBUG_OBJECT(pad, "pad is blocked now");
-    g_print("%s is blocked now\n", GST_OBJECT_NAME(pad));
+    //g_print("%s is blocked now\n", GST_OBJECT_NAME(pad));
 
     /* remove the probe first */
-    g_print("Removing block probe...\n");
+    //g_print("Removing block probe...\n");
     gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
-    g_print("BLOCK_PROBE removed\n");
+    //g_print("BLOCK_PROBE removed\n");
 
     /* install new probe for EOS */
     srcpad = gst_element_get_static_pad(cur_effect, "src");
@@ -140,7 +140,7 @@ timeout_cb(gpointer user_data)
 {
     //GstStateChangeReturn ret;
 
-    g_print("\nIn timeout_cb\n");
+    //g_print("\nIn timeout_cb\n");
     gst_element_get_state (pipeline, NULL, NULL, -1);
     //g_print("GstStateChangeReturn: %d\n", ret);
     //if (ret == GST_STATE_CHANGE_FAILURE) {
