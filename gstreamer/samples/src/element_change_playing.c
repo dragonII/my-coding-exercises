@@ -2,7 +2,8 @@
 
 static gchar *opt_effects = NULL;
 
-#define DEFAULT_EFFECTS "identity,exclusion,navigationtest,agingtv,videoflip,vertigotv,gaussianblur,shagadelictv,edgetv"
+//#define DEFAULT_EFFECTS "navigationtest,identity,exclusion,navigationtest,agingtv,videoflip,vertigotv,gaussianblur,shagadelictv,edgetv"
+#define DEFAULT_EFFECTS "edgetv,navigationtest,identity,videoflip,gaussianblur"
 
 static GstPad *blockpad;
 static GstElement *conv_before;
@@ -17,24 +18,32 @@ event_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
     GMainLoop *loop = user_data;
     GstElement *next;
+    gboolean ret;
+    //GstStateChangeReturn stateret;
 
     if(GST_EVENT_TYPE(GST_PAD_PROBE_INFO_DATA(info)) != GST_EVENT_EOS)
+    {
+        g_print("block probe ID: %lu\n", GST_PAD_PROBE_INFO_ID(info));
         return GST_PAD_PROBE_OK;
+    }
 
     /* EOS event received */
+    g_print("Blocking effect's src pad\n");
     gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
     g_print("BLOCK_PROBE removed after when EOS\n");
 
     /* push current effect back info the queue */
-    g_queue_push_tail(&effects, gst_object_ref(cur_effect));
+    //g_queue_push_tail(&effects, gst_object_ref(cur_effect));
     /* take next effect from the queue */
     next = g_queue_pop_head(&effects);
     if(next == NULL)
     {
         GST_DEBUG_OBJECT(pad, "no more effects");
+        g_print("\nno more effect on %s\n", GST_OBJECT_NAME(pad));
         g_main_loop_quit(loop);
         return GST_PAD_PROBE_DROP;
     }
+    g_print("Next effect: %s\n", GST_OBJECT_NAME(next));
 
     g_print("Switching from '%s' to '%s'..\n", GST_OBJECT_NAME(cur_effect),
         GST_OBJECT_NAME(next));
@@ -43,15 +52,27 @@ event_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 
     /* remove unlinks automatically */
     GST_DEBUG_OBJECT(pipeline, "removing %" GST_PTR_FORMAT, cur_effect);
+    g_print("removing %s\n", GST_OBJECT_NAME(cur_effect));
     gst_bin_remove(GST_BIN(pipeline), cur_effect);
 
     GST_DEBUG_OBJECT(pipeline, "adding  %" GST_PTR_FORMAT, next);
-    gst_bin_add(GST_BIN(pipeline), next);
+    g_print("adding %s\n", GST_OBJECT_NAME(next));
+    ret = gst_bin_add(GST_BIN(pipeline), next);
+    if(ret == FALSE)
+        g_print("Add failed\n");
+    else
+        g_print("Add successful\n");
 
     GST_DEBUG_OBJECT(pipeline, "linking...");
-    gst_element_link_many(conv_before, next, conv_after, NULL);
+    ret = gst_element_link_many(conv_before, next, conv_after, NULL);
+    if(ret == FALSE)
+        g_print("Link failed\n");
+    else
+        g_print("Link successful\n");
 
     gst_element_set_state(next, GST_STATE_PLAYING);
+    //stateret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    //g_print("GstStateChangeReturn = %s\n", stateret == GST_STATE_CHANGE_SUCCESS ? "Success" : "Others");
 
     cur_effect = next;
     GST_DEBUG_OBJECT(pipeline, "done");
@@ -94,6 +115,7 @@ pad_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
     g_print("%s is blocked now\n", GST_OBJECT_NAME(pad));
 
     /* remove the probe first */
+    g_print("Removing block probe...\n");
     gst_pad_remove_probe(pad, GST_PAD_PROBE_INFO_ID(info));
     g_print("BLOCK_PROBE removed\n");
 
@@ -116,7 +138,14 @@ pad_probe_cb(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 static gboolean
 timeout_cb(gpointer user_data)
 {
-    g_print("In timeout_cb\n");
+    //GstStateChangeReturn ret;
+
+    g_print("\nIn timeout_cb\n");
+    gst_element_get_state (pipeline, NULL, NULL, -1);
+    //g_print("GstStateChangeReturn: %d\n", ret);
+    //if (ret == GST_STATE_CHANGE_FAILURE) {
+    //    g_print ("failed to play the file\n");
+    //}
     gst_pad_add_probe(blockpad, GST_PAD_PROBE_TYPE_BLOCK_DOWNSTREAM,
             pad_probe_cb, user_data, NULL);
 
