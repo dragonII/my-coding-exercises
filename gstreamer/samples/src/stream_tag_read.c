@@ -91,7 +91,10 @@ int main(int argc, char **argv)
                                          GST_MESSAGE_TAG |
                                          GST_MESSAGE_ERROR);
         if(GST_MESSAGE_TYPE(msg) != GST_MESSAGE_TAG) /* error or async_done */
+        {
+            g_print("ASYNC_DONE or ERROR received\n");
             break;
+        }
 
         gst_message_parse_tag(msg, &tags);
 
