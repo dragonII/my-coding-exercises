@@ -1,6 +1,8 @@
 #ifndef __PTRX_PALLOC_H__
 #define __PTRX_PALLOC_H__
 
+#include <ptrx_core.h>
+
 typedef struct
 {
     unsigned char       *last;
