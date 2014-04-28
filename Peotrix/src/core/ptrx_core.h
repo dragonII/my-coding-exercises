@@ -3,6 +3,12 @@
 
 #include <ptrx_string.h>
 
+#define LF      (unsigned char)10
+#define CR      (unsigned char)13
+#define CRLF    "\0x0d\x0a"
+
+#define PTRX_PREFIX "/usr/local/PreTrix/"
+
 typedef struct ptrx_open_file_s     ptrx_open_file_t;
 typedef struct ptrx_log_s           ptrx_log_t;
 typedef struct ptrx_cycle_s         ptrx_cycle_t;
