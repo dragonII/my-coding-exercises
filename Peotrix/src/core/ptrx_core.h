@@ -2,6 +2,8 @@
 #define __PTRX_CORE_H__
 
 #include <ptrx_string.h>
+#include <ptrx_cycle.h>
+#include <ptrx_palloc.h>
 
 #define LF      (unsigned char)10
 #define CR      (unsigned char)13

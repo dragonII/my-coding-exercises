@@ -2,6 +2,7 @@
 #define __PTRX_FILES_H__
 
 #include <ptrx_core.h>
+#include <unistd.h>
 
 #define ptrx_linefeed(p)    *p++ = LF;
 #define PTRX_LINEFEED_SIZE  1

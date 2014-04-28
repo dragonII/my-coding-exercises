@@ -1,14 +1,16 @@
 #ifndef __PTRX_CYCLE_H__
 #define __PTRX_CYCLE_H__
 
-#include <ptrx_queue.h>
+#include <ptrx_core.h>
+
+unsigned int ptrx_test_config;
 
 struct ptrx_cycle_s
 {
     void                ****conf_ctx;
     ptrx_pool_t         *pool;
 
-    ptrx_log_t          *log
+    ptrx_log_t          *log;
     ptrx_log_t          new_log;
 
     ptrx_connection_t   **files;
@@ -75,7 +77,6 @@ typedef struct
     int             worker_threads;
     size_t          thread_stack_size;
 } ptrx_core_conf_t;
-
 
 
 

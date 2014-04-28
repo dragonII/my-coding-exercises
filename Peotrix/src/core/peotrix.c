@@ -3,8 +3,12 @@
  */
 
 #include <ptrx_core.h>
+#include <ptrx_log.h>
+#include <peotrix.h>
 
 static unsigned int     ptrx_show_version;
+static unsigned int     ptrx_show_help;
+static unsigned int     ptrx_show_configure;
 static unsigned char    *ptrx_prefix;
 
 static int ptrx_get_options(int argc, char **argv)
@@ -85,7 +89,9 @@ int main(int argc, char **argv)
         if(ptrx_show_configure)
         {
             // TODO
-            ptrx_write_stderr("configure arguments:" PTRX_CONFIGURE PTRX_LINEFEED);
+
+            //ptrx_write_stderr("configure arguments:" PTRX_CONFIGURE PTRX_LINEFEED); 
+            return 0;
         }
 
         if(!ptrx_test_config)
