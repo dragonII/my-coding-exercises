@@ -1,7 +1,7 @@
 #ifndef __PTRX_LOG_H__
 #define __PTRX_LOG_H__
 
-#include "ptrx_config.h"
+#include <ptrx_config.h>
 
 typedef unsigned char *(ptrx_log_handler_pt)(ptrx_log_t *log, unsigned char *buf, size_t len);
 
