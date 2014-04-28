@@ -1,10 +1,8 @@
-
-#ifndef PTRX_SYS_NERR
-#define PTRX_SYS_NERR   100
-#endif
+#include <stdio.h>
 
 static ptrx_str_t   *ptrx_sys_errlist;
 static ptrx_str_t   ptrx_unknown_error = ptrx_string("Unknown error");
+static unsigned int PTRX_SYS_NERR = sys_nerr;
 
 unsigned int
 ptrx_strerror_init(void)
