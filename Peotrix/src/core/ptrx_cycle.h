@@ -2,8 +2,15 @@
 #define __PTRX_CYCLE_H__
 
 #include <ptrx_core.h>
+#include <ptrx_palloc.h>
+#include <ptrx_connection.h>
+#include <ptrx_array.h>
+#include <ptrx_list.h>
 
-unsigned int ptrx_test_config;
+typedef struct ptrx_cycle_s ptrx_cycle_t;
+
+unsigned int            ptrx_test_config;
+volatile ptrx_cycle_t   *ptrx_cycle;
 
 struct ptrx_cycle_s
 {

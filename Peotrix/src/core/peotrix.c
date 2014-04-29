@@ -2,14 +2,26 @@
  * Peo Matrix
  */
 
+#include <unistd.h>
+extern char **environ;
+
 #include <ptrx_core.h>
 #include <ptrx_log.h>
 #include <peotrix.h>
+#include <ptrx_posix_init.h>
+#include <ptrx_process.h>
+#include <ptrx_process_cycle.h>
+#include <ptrx_times.h>
+#include <ptrx_cycle.h>
+#include <ptrx_alloc.h>
+
 
 static unsigned int     ptrx_show_version;
 static unsigned int     ptrx_show_help;
 static unsigned int     ptrx_show_configure;
 static unsigned char    *ptrx_prefix;
+
+static char **ptrx_os_environ;
 
 static int ptrx_get_options(int argc, char **argv)
 {
@@ -52,6 +64,45 @@ static int ptrx_get_options(int argc, char **argv)
         } /* switch(*p++) */
     } /* for loop */
 }
+
+
+static int
+ptrx_save_argv(ptrx_cycle_t *cycle, int argc, char **argv)
+{
+    size_t          len;
+    int             i;
+
+    ptrx_os_argv = (char **)argv;
+
+    ptrx_argc = argc;
+    ptrx_argv = ptrx_alloc((argc + 1) * sizeof (char *), cycle->log);
+    if(ptrx_argv == NULL)
+    {
+        return PTRX_ERROR;
+    }
+
+    for(i = 0; i < argc; i++)
+    {
+        len = ptrx_strlen(argv[i]) + 1;
+
+        ptrx_argv[i] = ptrx_alloc(len, cycle->log);
+        if(ptrx_argv[i] == NULL)
+        {
+            return PTRX_ERROR;
+        }
+
+        (void)ptrx_cpystrn((unsigned char *)ptrx_argv[i],
+                           (unsigned char *)argv[i], len);
+    }
+
+    ptrx_argv[i] = NULL;
+
+    ptrx_os_environ = environ;
+
+    return PTRX_OK;
+}
+
+
 
 int main(int argc, char **argv)
 {

@@ -1,7 +1,6 @@
 #ifndef __PTRX_LOG_H__
 #define __PTRX_LOG_H__
 
-//#include <ptrx_config.h>
 
 #define PTRX_LOG_STDERR      0
 #define PTRX_LOG_EMERG       1
@@ -16,10 +15,11 @@
 #define PTRX_ERROR_LOG_PATH "log/error.log"
 
 #include <ptrx_errno.h>
+#include <ptrx_conf_file.h>
+
+typedef struct ptrx_log_s   ptrx_log_t;
 
 typedef unsigned char *(*ptrx_log_handler_pt)(ptrx_log_t *log, unsigned char *buf, size_t len);
-void ptrx_log_stderr(ptrx_err_t err, const char *fmt, ...);
-
 
 struct ptrx_log_s
 {
@@ -37,6 +37,10 @@ struct ptrx_log_s
      */
     char                *action;
 };
+
+ptrx_log_t *ptrx_log_init(unsigned char *prefix);
+void        ptrx_log_stderr(ptrx_err_t err, const char *fmt, ...);
+
 
 #define PTRX_MAX_ERROR_STR  2048
 

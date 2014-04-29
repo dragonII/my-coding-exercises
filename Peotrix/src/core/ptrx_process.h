@@ -11,5 +11,9 @@
 
 #define ptrx_getpid     getpid
 
+int       ptrx_argc;
+char    **ptrx_argv;
+char    **ptrx_os_argv;
+
 
 #endif

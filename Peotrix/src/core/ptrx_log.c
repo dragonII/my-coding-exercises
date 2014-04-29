@@ -33,7 +33,9 @@ void ptrx_log_stderr(ptrx_err_t err, const char *fmt, ...)
 
     (void)ptrx_write_console(ptrx_stderr, errstr, p - errstr);
 }
-ptrx_log_t ptrx_log_init(unsigned char *prefix)
+
+ptrx_log_t *
+ptrx_log_init(unsigned char *prefix)
 {
     unsigned char *p, *name;
     size_t        nlen, plen;

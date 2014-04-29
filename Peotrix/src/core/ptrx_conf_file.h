@@ -3,6 +3,7 @@
 
 #include "ptrx_string.h"
 
+
 struct ptrx_open_file_s
 {
     int             fd;
@@ -11,6 +12,9 @@ struct ptrx_open_file_s
     unsigned char   *pos;
     unsigned char   *last;
 };
+
+typedef struct ptrx_open_file_s ptrx_open_file_t;
+
 
 
 #endif
