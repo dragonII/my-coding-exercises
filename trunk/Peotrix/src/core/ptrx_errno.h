@@ -3,5 +3,7 @@
 
 typedef int     ptrx_err_t;
 
+unsigned int ptrx_strerror_init(void);
+
 
 #endif

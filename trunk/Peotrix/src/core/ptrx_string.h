@@ -26,6 +26,9 @@ typedef struct
 
 #define ptrx_strlen(s)      strlen((const char *) s)
 
+#define ptrx_memzero(buf, n)        (void)memset(buf, 0, n)
+#define ptrx_memset(buf, c, n)      (void)memset(buf, c, n)
+
 #define ptrx_memcpy(dst, src, n)    (void)memcpy(dst, src, n)
 #define ptrx_cpymem(dst, src, n)    (((unsigned char *)memcpy(dst, src, n)) + (n))
 

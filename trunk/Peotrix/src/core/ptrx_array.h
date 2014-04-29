@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+typedef struct ptrx_array_s         ptrx_array_t;
+
 struct ptrx_array_s
 {
     void            *elts;
