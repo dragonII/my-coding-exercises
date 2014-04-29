@@ -23,6 +23,8 @@ typedef struct
 
 #define ptrx_string(str)    { sizeof(str) - 1, (unsigned char *)str }
 #define ptrx_null_string    { 0, NULL }
+#define ptrx_str_set(str, text)         \
+    (str)->len = sizeof(text) - 1; (str)->data = (unsigned char *)text
 
 #define ptrx_strlen(s)      strlen((const char *) s)
 
