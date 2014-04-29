@@ -118,7 +118,7 @@ static int ptrx_process_options(ptrx_cycle_t *cycle)
             p = ptrx_pnalloc(cycle->pool, len + 1);
             if(p == NULL)
             {
-                return PTRX_ERROR:
+                return PTRX_ERROR;
             }
 
             ptrx_memcpy(p, ptrx_prefix, len);

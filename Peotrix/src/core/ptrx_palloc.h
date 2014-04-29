@@ -43,5 +43,7 @@ struct ptrx_pool_s
 
 ptrx_pool_t *ptrx_create_pool(size_t size, ptrx_log_t *log);
 
+void        *ptrx_pnalloc(ptrx_pool_t *pool, size_t size);
+
 
 #endif
