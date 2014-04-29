@@ -6,6 +6,7 @@
 #include <ptrx_connection.h>
 #include <ptrx_array.h>
 #include <ptrx_list.h>
+#include <ptrx_log.h>
 
 typedef struct ptrx_cycle_s ptrx_cycle_t;
 

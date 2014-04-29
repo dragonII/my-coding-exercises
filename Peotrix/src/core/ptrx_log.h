@@ -15,11 +15,22 @@
 #define PTRX_ERROR_LOG_PATH "log/error.log"
 
 #include <ptrx_errno.h>
-#include <ptrx_conf_file.h>
+#include <ptrx_string.h>
 
 typedef struct ptrx_log_s   ptrx_log_t;
 
 typedef unsigned char *(*ptrx_log_handler_pt)(ptrx_log_t *log, unsigned char *buf, size_t len);
+
+typedef struct ptrx_open_file_s ptrx_open_file_t;
+struct ptrx_open_file_s
+{
+    int             fd;
+    ptrx_str_t      name;
+    unsigned char   *buffer;
+    unsigned char   *pos;
+    unsigned char   *last;
+};
+
 
 struct ptrx_log_s
 {
