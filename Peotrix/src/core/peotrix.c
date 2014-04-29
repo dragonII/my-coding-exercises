@@ -20,6 +20,8 @@ static unsigned int     ptrx_show_version;
 static unsigned int     ptrx_show_help;
 static unsigned int     ptrx_show_configure;
 static unsigned char    *ptrx_prefix;
+static unsigned char    *ptrx_conf_file;
+static unsigned char    *ptrx_conf_params;
 
 static char **ptrx_os_environ;
 

@@ -6,7 +6,8 @@
 #define CR      (unsigned char)13
 #define CRLF    "\0x0d\x0a"
 
-#define PTRX_PREFIX "/usr/local/PreTrix/"
+#define PTRX_PREFIX     "/usr/local/PreTrix/"
+#define PTRX_CONF_PATH  "conf/ptrx.conf"
 
 #define PTRX_OK         0
 #define PTRX_ERROR      -1
