@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 #include <ptrx_core.h>
-#include <unistd.h>
+#include <ptrx_string.h>
 
 typedef int             ptrx_fd_t;
 typedef struct stat     ptrx_file_info_t;
@@ -68,6 +68,18 @@ struct ptrx_file_s
     unsigned            valid_info:1;
     unsigned            directio:1;
 };
+
+
+//typedef struct ptrx_open_file_s ptrx_open_file_t;
+//struct ptrx_open_file_s
+//{
+//    int             fd;
+//    ptrx_str_t      name;
+//    unsigned char   *buffer;
+//    unsigned char   *pos;
+//    unsigned char   *last;
+//};
+
 
 
 #endif
