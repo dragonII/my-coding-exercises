@@ -103,6 +103,79 @@ ptrx_save_argv(ptrx_cycle_t *cycle, int argc, char **argv)
 }
 
 
+static int ptrx_process_options(ptrx_cycle_t *cycle)
+{
+    unsigned char   *p;
+    size_t          len;
+
+    if(ptrx_prefix)
+    {
+        len = ptrx_strlen(ptrx_prefix);
+        p = ptrx_prefix;
+
+        if(!ptrx_path_separator(*p))
+        {
+            p = ptrx_pnalloc(cycle->pool, len + 1);
+            if(p == NULL)
+            {
+                return PTRX_ERROR:
+            }
+
+            ptrx_memcpy(p, ptrx_prefix, len);
+            p[len++] = '/';
+        }
+
+        cycle->conf_prefix.len = len;
+        cycle->conf_prefix.data = p;
+        cycle->prefix.len = len;
+        cycle->prefix.data = p;
+    } else
+    {
+        ptrx_str_set(&cycle->conf_prefix, PTRX_PREFIX);
+        ptrx_str_set(&cycle->prefix, PTRX_PREFIX);
+    }
+
+    if(ptrx_conf_file)
+    {
+        cycle->conf_file.len = ptrx_strlen(ptrx_conf_file);
+        cycle->conf_file.data = ptrx_conf_file;
+    } else
+    {
+        ptrx_str_set(&cycle->conf_file, PTRX_CONF_PATH);
+    }
+
+    if(ptrx_conf_full_name(cycle, &cycle->conf_file, 0) != PTRX_OK)
+    {
+        return PTRX_ERROR;
+    }
+
+    for(p = cycle->conf_file.data + cycle->conf_file.len - 1;
+        p > cycle->conf_file.data;
+        p--)
+    {
+        if(ptrx_path_separator(*p))
+        {
+            cycle->conf_prefix.len = p - ptrx_cycle->conf_file.data + 1;
+            cycle->conf_prefix.data = ptrx_cycle->conf_file.data;
+            break;
+        }
+    }
+
+    if(ptrx_conf_params)
+    {
+        cycle->conf_param.len = ptrx_strlen(ptrx_conf_params);
+        cycle->conf_param.data = ptrx_conf_params;
+    }
+
+    if(ptrx_test_config)
+    {
+        cycle->log->log_level = PTRX_LOG_INFO;
+    }
+
+    return PTRX_OK;
+}
+
+
 
 int main(int argc, char **argv)
 {
