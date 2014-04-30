@@ -2,6 +2,8 @@
  * Peo Matrix
  */
 
+#include <stdlib.h>
+
 #include <unistd.h>
 extern char **environ;
 
@@ -14,6 +16,9 @@ extern char **environ;
 #include <ptrx_times.h>
 #include <ptrx_cycle.h>
 #include <ptrx_alloc.h>
+#include <ptrx_conf_file.h>
+#include <ptrx_crc32.h>
+#include <ptrx_socket.h>
 
 
 static unsigned int     ptrx_show_version;
@@ -24,6 +29,8 @@ static unsigned char    *ptrx_conf_file;
 static unsigned char    *ptrx_conf_params;
 
 static char **ptrx_os_environ;
+
+unsigned int            ptrx_max_module;
 
 static int ptrx_get_options(int argc, char **argv)
 {
@@ -175,6 +182,63 @@ static int ptrx_process_options(ptrx_cycle_t *cycle)
     }
 
     return PTRX_OK;
+}
+
+
+static int
+ptrx_add_inherited_sockets(ptrx_cycle_t *cycle)
+{
+    unsigned char           *p, *v, *inherited;
+    int                     s;
+    ptrx_listening_t        *ls;
+
+    inherited = (unsigned char *)getenv(PTRX_VAR);
+
+    if(inherited == NULL)
+    {
+        return PTRX_OK;
+    }
+
+    ptrx_log_error(PTRX_LOG_NOTICE, cycle->log, 0,
+                    "using inherited sockets from \"%s\"", inherited);
+
+    if(ptrx_array_init(&cycle->listening, cycle->pool, 10,
+                        sizeof(ptrx_listening_t)) != PTRX_OK)
+    {
+        return PTRX_ERROR;
+    }
+
+    for(p = inherited, v = p; *p; p++)
+    {
+        if(*p == ':' || *p == ';')
+        {
+            s = ptrx_atoi(v, p - v);
+            if(s == PTRX_ERROR)
+            {
+                ptrx_log_error(PTRX_LOG_EMERG, cycle->log, 0,
+                           "invalid socket number \"%s\" in " PTRX_VAR
+                           " environment variable, ignoring the rest"
+                           " of the variable", v);
+                break;
+            }
+
+            v = p + 1;
+
+            ls = ptrx_array_push(&cycle->listening);
+            if(ls == NULL)
+            {
+                return PTRX_ERROR;
+            }
+
+            ptrx_memzero(ls, sizeof(ptrx_listening_t));
+
+            ls->fd = (ptrx_socket_t)s;
+        }
+    }
+
+    ptrx_inherited = 1;
+
+    return ptrx_set_inherited_sockets(cycle);
 }
 
 

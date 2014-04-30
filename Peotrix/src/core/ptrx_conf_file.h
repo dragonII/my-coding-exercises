@@ -15,6 +15,7 @@
 //    unsigned char   *last;
 //};
 
+ptrx_module_t   *ngx_modules[];
 
 int ptrx_conf_full_name(ptrx_cycle_t *cycle,
                         ptrx_str_t   *name,
