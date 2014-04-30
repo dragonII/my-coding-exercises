@@ -51,6 +51,8 @@ struct ptrx_log_s
 
 ptrx_log_t *ptrx_log_init(unsigned char *prefix);
 void        ptrx_log_stderr(ptrx_err_t err, const char *fmt, ...);
+void        ptrx_log_error(unsigned int level, ptrx_log_t *log, 
+                           ptrx_err_t err, const char *fmt, ...);
 
 
 #define PTRX_MAX_ERROR_STR  2048

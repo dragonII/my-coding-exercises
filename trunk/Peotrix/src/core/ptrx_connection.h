@@ -2,10 +2,10 @@
 #define __PTRX_CONNECTION_H__
 
 #include <ptrx_event.h>
-#include <ptrx_socket.h>
 #include <ptrx_queue.h>
 #include <ptrx_atomic.h>
 
+typedef int    ptrx_socket_t;
 typedef struct ptrx_connection_s   ptrx_connection_t;
 
 typedef ssize_t (*ptrx_recv_pt)(ptrx_connection_t *c, unsigned char *buf, size_t size);
@@ -121,7 +121,6 @@ struct ptrx_connection_s
 
     ptrx_atomic_t       lock;
 };
-
 
 
 #endif

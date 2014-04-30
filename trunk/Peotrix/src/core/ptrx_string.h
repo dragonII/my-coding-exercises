@@ -35,6 +35,7 @@ typedef struct
 #define ptrx_cpymem(dst, src, n)    (((unsigned char *)memcpy(dst, src, n)) + (n))
 
 unsigned char * ptrx_cpystrn(unsigned char *dst, unsigned char *src, size_t n);
+int             ptrx_atoi(unsigned char *line, size_t n);
 
 
 #endif
