@@ -45,6 +45,7 @@ ptrx_pool_t *ptrx_create_pool(size_t size, ptrx_log_t *log);
 
 void        *ptrx_pnalloc(ptrx_pool_t *pool, size_t size);
 void        *ptrx_palloc(ptrx_pool_t *pool, size_t size);
+void        *ptrx_pcalloc(ptrx_pool_t *pool, size_t size);
 
 
 #endif

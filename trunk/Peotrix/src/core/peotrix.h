@@ -6,6 +6,7 @@
 #define PTRX_VER        "PeoTrix/" PTRX_VERSION
 
 #define PTRX_VAR        "PEOTRIX"
+#define PTRX_OLDPID_EXT ".oldbin"
 
 
 #endif

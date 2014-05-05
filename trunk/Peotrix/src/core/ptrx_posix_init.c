@@ -32,4 +32,11 @@ int ptrx_os_init(ptrx_log_t *log)
     return PTRX_OK;
 }
 
+void ptrx_os_status(ptrx_log_t *log)
+{
+    ptrx_log_error(PTRX_LOG_NOTICE, log, 0, PTRX_VER);
 
+    ptrx_log_error(PTRX_LOG_NOTICE, log, 0,
+                    "getrlimit(RLIMIT_NOFILE): %r:%r",
+                    rlmt.rlim_cur, rlmt.rlim_max);
+}

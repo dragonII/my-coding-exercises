@@ -9,6 +9,7 @@ int inherited_nonblocking;
 int ptrx_tcp_nodelay_and_tcp_nopush;
 
 
-int ptrx_os_init(ptrx_log_t *log);
+int  ptrx_os_init(ptrx_log_t *log);
+void ptrx_os_status(ptrx_log_t *log);
 
 #endif

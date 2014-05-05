@@ -8,6 +8,7 @@
 
 #define PTRX_PREFIX     "/usr/local/PreTrix/"
 #define PTRX_CONF_PATH  "conf/ptrx.conf"
+#define PTRX_PID_PATH   "log/peotrix.pid"
 
 #define PTRX_OK         0
 #define PTRX_ERROR      -1

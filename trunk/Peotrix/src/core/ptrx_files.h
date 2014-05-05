@@ -15,7 +15,9 @@ typedef struct stat     ptrx_file_info_t;
 #define PTRX_LINEFEED_SIZE  1
 #define PTRX_LINEFEED       "\x0a"
 
-#define ptrx_stderr     STDERR_FILENO
+#define ptrx_stderr         STDERR_FILENO
+#define ptrx_set_stderr(fd) dup2(fd, STDERR_FILENO)
+#define ptrx_set_stderr_n   "dup2(STDERR_FILENO)"
 
 #define PTRX_FILE_RDONLY        O_RDONLY
 #define PTRX_FILE_WRONLY        O_WRONLY
@@ -33,6 +35,9 @@ typedef struct stat     ptrx_file_info_t;
 #define PTRX_FILE_ERROR     -1
 
 #define ptrx_path_separator(c)  ((c) == '/')
+
+#define ptrx_close_file         close
+#define ptrx_close_file_n       "close()"
 
 #define ptrx_open_file(name, mode, create, access)  \
     open((const char *)name, mode|create, access)
