@@ -69,6 +69,9 @@ void        ptrx_log_error(unsigned int level, ptrx_log_t *log,
 
 #include <ptrx_files.h>
 #include <string.h>
+
+//unsigned int    ptrx_use_stderr = 1;
+
 static inline void
 ptrx_write_stderr(char *text)
 {

@@ -15,5 +15,6 @@ int       ptrx_argc;
 char    **ptrx_argv;
 char    **ptrx_os_argv;
 
+int ptrx_init_signals(ptrx_log_t *log);
 
 #endif

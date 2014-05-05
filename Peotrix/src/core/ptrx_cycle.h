@@ -79,13 +79,16 @@ typedef struct
     ptrx_str_t      pid;
     ptrx_str_t      oldpid;
 
-    ptrx_array_t    evn;
+    ptrx_array_t    env;
     char            **environment;
 
     int             worker_threads;
     size_t          thread_stack_size;
 } ptrx_core_conf_t;
 
+ptrx_cycle_t *ptrx_init_cycle(ptrx_cycle_t *old_cycle);
+int           ptrx_signal_process(ptrx_cycle_t *cycle, char *sig);
+int           ptrx_create_pidfile(ptrx_str_t *name, ptrx_log_t *log);
 
 
 #endif

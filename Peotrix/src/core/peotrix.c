@@ -19,6 +19,13 @@ extern char **environ;
 #include <ptrx_conf_file.h>
 #include <ptrx_crc32.h>
 #include <ptrx_socket.h>
+#include <ptrx_conf_file.h>
+#include <ptrx_user.h>
+#include <ptrx_string.h>
+#include <ptrx_daemon.h>
+
+#define PTRX_INT32_LEN  sizeof("-2147483648") - 1
+#define PTRX_INT64_LEN  sizeof("-9223372036854775808") - 1
 
 
 static unsigned int     ptrx_show_version;
@@ -27,10 +34,186 @@ static unsigned int     ptrx_show_configure;
 static unsigned char    *ptrx_prefix;
 static unsigned char    *ptrx_conf_file;
 static unsigned char    *ptrx_conf_params;
+static char             *ptrx_signal;
 
 static char **ptrx_os_environ;
 
 unsigned int            ptrx_max_module;
+
+unsigned int            ptrx_quiet_mode;
+
+static void *
+ptrx_core_module_create_conf(ptrx_cycle_t *cycle)
+{
+    ptrx_core_conf_t *ccf;
+
+    ccf = ptrx_pcalloc(cycle->pool, sizeof(ptrx_core_conf_t));
+    if(ccf == NULL)
+    {
+        return NULL;
+    }
+
+    /*
+     * set by ptrx_pcalloc()
+     *
+     *      ccf->pid = NULL;
+     *      ccf-oldpid = NULL;
+     *      ccf->priority = 0;
+     *      ccf->cpu_affinity_n = 0;
+     *      ccf->cpu_affinity = NULL;
+     */
+
+     ccf->daemon = PTRX_CONF_UNSET;
+     ccf->master = PTRX_CONF_UNSET;
+     ccf->timer_resolution = PTRX_CONF_UNSET_MSEC;
+
+     ccf->worker_processes = PTRX_CONF_UNSET;
+     ccf->debug_points = PTRX_CONF_UNSET;
+
+     ccf->rlimit_nofile = PTRX_CONF_UNSET;
+     ccf->rlimit_core = PTRX_CONF_UNSET;
+     ccf->rlimit_sigpending = PTRX_CONF_UNSET;
+
+     ccf->user = (ptrx_uid_t)PTRX_CONF_UNSER_UINT;
+     ccf->group = (ptrx_gid_t)PTRX_CONF_UNSER_UINT;
+
+     ccf->worker_threads = PTRX_CONF_UNSET;
+     ccf->thread_stack_size = PTRX_CONF_UNSET_SIZE;
+
+     if(ptrx_array_init(&ccf->env, cycle->pool, 1, sizeof(ptrx_str_t))
+         != PTRX_OK)
+     {
+         return NULL;
+     }
+
+     return ccf;
+}
+
+
+static char *
+ptrx_core_module_init_conf(ptrx_cycle_t *cycle, void *conf)
+{
+    ptrx_core_conf_t    *ccf = conf;
+
+    ptrx_conf_init_value(ccf->daemon, 1);
+    ptrx_conf_init_value(ccf->master, 1);
+    ptrx_conf_init_msec_value(ccf->timer_resolution, 0);
+
+    ptrx_conf_init_value(ccf->worker_processes, 1);
+    ptrx_conf_init_value(ccf->debug_points, 0);
+
+    ptrx_conf_init_value(ccf->worker_threads, 0);
+    ptrx_threads_n = ccf->worker_threads;
+    ptrx_conf_init_size_value(ccf->thread_stack_size, 2 * 1024 * 1024);
+
+    if(ccf->pid.len == 0)
+    {
+        ptrx_str_set(&ccf->pid, PTRX_PID_PATH);
+    }
+
+    if(ptrx_conf_full_name(cycle, &ccf->pid, 0) != PTRX_OK)
+    {
+        return PTRX_CONF_ERROR;
+    }
+
+    ccf->oldpid.len = ccf->pid.len + sizeof(PTRX_OLDPID_EXT);
+
+    ccf->oldpid.data = ptrx_pnalloc(cycle->pool, ccf->oldpid.len);
+    if(ccf->oldpid.data == NULL)
+    {
+        return PTRX_CONF_ERROR;
+    }
+
+    ptrx_memcpy(ptrx_cpymem(ccf->oldpid.data, ccf->pid.data, ccf->pid.len),
+                 PTRX_OLDPID_EXT, sizeof(PTRX_OLDPID_EXT));
+
+    return PTRX_CONF_OK;
+}
+
+
+static ptrx_command_t   ptrx_core_commands[] =
+{
+    {
+        ptrx_string("daemon"),
+        PTRX_MAIN_CONF|PTRX_DIRECT_CONF|PTRX_CONF_FLAG,
+        ptrx_conf_set_flag_slot,
+        0,
+        offsetof(ptrx_core_conf_t, daemon),
+        NULL
+    },
+
+    {
+        ptrx_string("master_process"),
+        PTRX_MAIN_CONF|PTRX_DIRECT_CONF|PTRX_CONF_FLAG,
+        ptrx_conf_set_flag_slot,
+        0,
+        offsetof(ptrx_core_conf_t, daemon),
+        NULL
+    },
+
+    {
+        ptrx_string("timer_resolution"),
+        PTRX_MAIN_CONF|PTRX_DIRECT_CONF|PTRX_CONF_TAKE1,
+        ptrx_conf_set_flag_slot,
+        0,
+        offsetof(ptrx_core_conf_t, daemon),
+        NULL
+    },
+
+    {
+        ptrx_string("pid"),
+        PTRX_MAIN_CONF|PTRX_DIRECT_CONF|PTRX_CONF_TAKE1,
+        ptrx_conf_set_flag_slot,
+        0,
+        offsetof(ptrx_core_conf_t, daemon),
+        NULL
+    },
+
+    {
+        ptrx_string("lock_file"),
+        PTRX_MAIN_CONF|PTRX_DIRECT_CONF|PTRX_CONF_TAKE1,
+        ptrx_conf_set_flag_slot,
+        0,
+        offsetof(ptrx_core_conf_t, daemon),
+        NULL
+    },
+
+    {
+        ptrx_string("worker_processes"),
+        PTRX_MAIN_CONF|PTRX_DIRECT_CONF|PTRX_CONF_TAKE1,
+        ptrx_conf_set_flag_slot,
+        0,
+        offsetof(ptrx_core_conf_t, daemon),
+        NULL
+    },
+
+    ptrx_null_command
+};
+
+
+
+static ptrx_core_module_t ptrx_core_module_ctx =
+{
+    ptrx_string("core"),
+    ptrx_core_module_create_conf,
+    ptrx_core_module_init_conf
+};
+
+ptrx_module_t   ptrx_core_module =
+{
+    PTRX_MODULE_V1,
+    &ptrx_core_module_ctx,      /* module context */
+    ptrx_core_commands,         /* module directives */
+    PTRX_CORE_MODULE,           /* module type */
+    NULL,                       /* init master */
+    NULL,                       /* init module */
+    NULL,                       /* init process */
+    NULL,                       /* init thread */
+    NULL,                       /* exit thread */
+    NULL,                       /* exit process */
+    NULL,                       /* exit master */
+    PTRX_MODULE_V1_PADDING  
+};
 
 static int ptrx_get_options(int argc, char **argv)
 {
@@ -243,6 +426,7 @@ ptrx_add_inherited_sockets(ptrx_cycle_t *cycle)
 
 
 
+
 int main(int argc, char **argv)
 {
     int                 i;
@@ -421,7 +605,7 @@ int main(int argc, char **argv)
 
     if(cycle->log->file->fd != ptrx_stderr)
     {
-        if(ptrx_set_stderr(cycle->log->file->df) == PTRX_FILE_ERROR)
+        if(ptrx_set_stderr(cycle->log->file->fd) == PTRX_FILE_ERROR)
         {
             ptrx_log_error(PTRX_LOG_EMERG, cycle->log, ptrx_errno,
                             ptrx_set_stderr_n " failed");
@@ -429,7 +613,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if(log->file->fd 1= ptrx_stderr)
+    if(log->file->fd != ptrx_stderr)
     {
         if(ptrx_close_file(log->file->fd) == PTRX_FILE_ERROR)
         {
