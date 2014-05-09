@@ -123,3 +123,78 @@ int ptrx_log_init(ptrx_log_t *log)
     return PTRX_OK;
 }
 
+
+void    ptrx_log_error_core(char *buffer, int level, 
+                            int err, char *fmt, va_list args)
+{
+    va_list         args;
+    unsigned char   *p, *last;
+    int             index;
+
+    memset(buffer, 0, PTRX_MAX_ERR_STR);
+
+    last = buffer + PTRX_MAX_ERR_STR;
+    p = errstr + 11;    /* "[PeoTrix]: " */
+
+    memcpy(errstr, "[PeoTrix]: ", 11);
+
+    index = vsprintf(p, fmt, args);
+
+    p = p + index;
+
+    if(err)
+    {
+        index = sprintf(p, " (%d: %s)", err, strerror(err));
+        p = p + index;
+    }
+
+    sprintf(p, "%c", '\n');
+    p++;
+}
+
+
+/* output log to stderr */
+void    ptrx_log_stderr(ptrx_log_t *log,
+                        int level, int err, char *fmt, ...)
+{
+    va_list         args;
+    unsigned char   errstr[PTRX_MAX_ERR_STR];
+
+    if(level > log->log_level)
+    {
+        /* skip if level is higher than threshold */
+        return;
+    }
+
+    va_start(args, fmt);
+    ptrx_log_error_core(errstr, level, err, fmt, args);
+    va_end(args);
+
+    write(ptrx_stderr, errstr, p - errstr);
+}
+
+/* output log to file */
+void    ptrx_log_error(ptrx_log_t *log,
+                       int   level,
+                       int   errno, char *fmt, ...)
+{
+    va_list         args;
+    unsigned char   errstr[PTRX_MAX_ERR_STR];
+    unsigned char   *p, *last;
+    int             index;
+
+    if(level > log->log_level)
+    {
+        /* skip if level is higher than threshold */
+        return;
+    }
+
+    va_start(args, fmt);
+    ptrx_log_error_core(errstr, level, err, fmt, args);
+    va_end(args);
+
+    /* TODO: output to log file */
+
+}
+
+
