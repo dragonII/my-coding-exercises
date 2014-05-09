@@ -10,7 +10,7 @@ static int log_initialized;
 
 static ptrx_log_t unique_log;
 
-char *ptrx_generate_new_name(ptrx_file_info_t *info)
+static char *ptrx_generate_new_name(ptrx_file_info_t *info)
 {
     struct tm *cur_tm;
 
@@ -124,7 +124,7 @@ int ptrx_log_init(ptrx_log_t *log)
 }
 
 
-void    ptrx_log_error_core(char *buffer, int level, 
+static void    ptrx_log_error_core(char *buffer, int level, 
                             int err, char *fmt, va_list args)
 {
     va_list         args;
