@@ -15,6 +15,8 @@
 #define PTRX_LOG_FILE_PATH          "/usr/local/PeoTrix/log/peotrix.log"
 #define PTRX_LOG_MAX_SIZE           10485760
 
+#define PTRX_MAX_ERR_STR            2048
+
 #include <file/ptrx_file.h>
 
 typedef struct ptrx_log_s
@@ -25,7 +27,16 @@ typedef struct ptrx_log_s
 } ptrx_log_t ;
 
 
-int ptrx_log_init(ptrx_log_t *log);
+int     ptrx_log_init(ptrx_log_t *log);
+
+/* output log to stderr */
+void    ptrx_log_stderr(ptrx_log_t *log, int level,
+                        int errno, char *fmt, ...);
+
+/* output log to file */
+void    ptrx_log_error(ptrx_log_t *log, int level,
+                       int  errno, char *fmt, ...);
+
 
 
 #endif
