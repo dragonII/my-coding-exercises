@@ -15,6 +15,11 @@ int main(int argc, char **argv)
     ptrx_log_t  *log;
 
     rc = ptrx_log_init(log);
+    if(rc != PTRX_OK)
+    {
+        printf("[LOG] Cannot initialize log module, exit\n");
+        return PTRX_ERROR;
+    }
 
     ///* create epoll */
     //epoolfd = epoll_create(MAX_EPOLL_SIZE);
