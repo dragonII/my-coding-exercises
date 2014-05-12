@@ -17,6 +17,8 @@
 
 #define PTRX_MAX_ERR_STR            2048
 
+#define ptrx_stderr                 STDERR_FILENO
+
 #include <file/ptrx_file.h>
 
 typedef struct ptrx_log_s
@@ -31,11 +33,11 @@ int     ptrx_log_init(ptrx_log_t *log);
 
 /* output log to stderr */
 void    ptrx_log_stderr(ptrx_log_t *log, int level,
-                        int errno, char *fmt, ...);
+                        int err_no, char *fmt, ...);
 
 /* output log to file */
 void    ptrx_log_error(ptrx_log_t *log, int level,
-                       int  errno, char *fmt, ...);
+                       int  err_no, char *fmt, ...);
 
 
 
