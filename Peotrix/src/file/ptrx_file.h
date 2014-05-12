@@ -16,10 +16,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
+
+#include <string/ptrx_string.h>
 
 typedef struct stat     ptrx_file_info_t;
 
-typedef ptrx_open_file_s 
+typedef struct ptrx_open_file_s 
 {
     int                 fd;
     ptrx_str_t          name;

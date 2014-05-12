@@ -5,8 +5,8 @@
 
 typedef struct
 {
-    size_t          len;
-    unsigned char  *data;
+    size_t      len;
+    char       *data;
 } ptrx_str_t;
 
 #define ptrx_strlen(s)      strlen((const char *) s)

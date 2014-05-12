@@ -1,9 +1,14 @@
 #include <errno.h>
-
 #include <string.h>
-#include <log/ptrx_log.h>
+#include <stdlib.h>
+#include <time.h>
+#include <stdio.h>
+#include <stdarg.h>
+
+#include <ptrx_log.h>
 #include <common/ptrx_common.h>
 #include <string/ptrx_string.h>
+#include <file/ptrx_file.h>
 
 
 static int log_initialized;
@@ -20,11 +25,11 @@ static char *ptrx_generate_new_name(ptrx_file_info_t *info)
 
     new_name = (char *)malloc(len);
 
-    memset(new_suffix, 0, len);
+    memset(new_name, 0, len);
 
     cur_tm = (struct tm *)malloc(sizeof(struct tm));
     
-    cur_tm = gmtime((const time_t *) &fileinfo.st_mtime);
+    cur_tm = gmtime((const time_t *) &info->st_mtime);
     
 
     sprintf(new_name, "%s_%4d%02d%02d%02d%02d",
@@ -41,14 +46,13 @@ static char *ptrx_generate_new_name(ptrx_file_info_t *info)
 
 int ptrx_log_init(ptrx_log_t *log)
 {
-    unsigned char       *p, *name;
-    size_t               nlen, plen;
+    char                *name;
     int                  rc;
     ptrx_file_info_t     file_info;
     off_t                file_len;
     char                *new_log_path;
 
-    name = (unsigned char *)PTRX_LOG_FILE_PATH;
+    name = (char *)PTRX_LOG_FILE_PATH;
 
     if(log_initialized > 0)
     {
@@ -60,7 +64,7 @@ int ptrx_log_init(ptrx_log_t *log)
     unique_log.connection = 0;
     unique_log.file.name.data = NULL;
     unique_log.file.name.len = ptrx_strlen(name);
-    unique_log.file.name.data = (unsigned char *)malloc(unique_log.file.name.len + 1);
+    unique_log.file.name.data = (char *)malloc(unique_log.file.name.len + 1);
 
     if(unique_log.file.name.data == NULL)
     {
@@ -81,7 +85,7 @@ int ptrx_log_init(ptrx_log_t *log)
         if(file_len >= PTRX_LOG_MAX_SIZE - (1024 * 1024))
         {
             /* Backup old file, create new file */
-            new_log_path = ptrx_generate_new_name(file_info);
+            new_log_path = ptrx_generate_new_name(&file_info);
 
             rename(name, new_log_path);
 
@@ -124,16 +128,16 @@ int ptrx_log_init(ptrx_log_t *log)
 }
 
 
-static void    ptrx_log_error_core(char *buffer, int level, 
+static char *ptrx_log_error_core(char *errstr, int level, 
                             int err, char *fmt, va_list args)
 {
-    va_list         args;
-    unsigned char   *p, *last;
+    //va_list         args;
+    char           *p, *last;
     int             index;
 
-    memset(buffer, 0, PTRX_MAX_ERR_STR);
+    memset(errstr, 0, PTRX_MAX_ERR_STR);
 
-    last = buffer + PTRX_MAX_ERR_STR;
+    last = errstr + PTRX_MAX_ERR_STR;
     p = errstr + 11;    /* "[PeoTrix]: " */
 
     memcpy(errstr, "[PeoTrix]: ", 11);
@@ -150,15 +154,18 @@ static void    ptrx_log_error_core(char *buffer, int level,
 
     sprintf(p, "%c", '\n');
     p++;
+
+    return p;
 }
 
 
 /* output log to stderr */
-void    ptrx_log_stderr(ptrx_log_t *log,
-                        int level, int err, char *fmt, ...)
+void    ptrx_log_stderr(ptrx_log_t *log, int level, 
+                        int err, char *fmt, ...)
 {
     va_list         args;
-    unsigned char   errstr[PTRX_MAX_ERR_STR];
+    char            errstr[PTRX_MAX_ERR_STR];
+    char           *p;
 
     if(level > log->log_level)
     {
@@ -167,21 +174,27 @@ void    ptrx_log_stderr(ptrx_log_t *log,
     }
 
     va_start(args, fmt);
-    ptrx_log_error_core(errstr, level, err, fmt, args);
+    p = ptrx_log_error_core(errstr, level, err, fmt, args);
     va_end(args);
 
-    write(ptrx_stderr, errstr, p - errstr);
+    if(p >= errstr)
+    {
+        write(ptrx_stderr, errstr, p - errstr);
+    } else
+    {
+        printf("[LOG]: error in ptrx_log_stderr\n");
+        return;
+    }
 }
 
 /* output log to file */
 void    ptrx_log_error(ptrx_log_t *log,
                        int   level,
-                       int   errno, char *fmt, ...)
+                       int   err, char *fmt, ...)
 {
     va_list         args;
-    unsigned char   errstr[PTRX_MAX_ERR_STR];
-    unsigned char   *p, *last;
-    int             index;
+    char            errstr[PTRX_MAX_ERR_STR];
+    char           *p;
 
     if(level > log->log_level)
     {
@@ -190,11 +203,17 @@ void    ptrx_log_error(ptrx_log_t *log,
     }
 
     va_start(args, fmt);
-    ptrx_log_error_core(errstr, level, err, fmt, args);
+    p = ptrx_log_error_core(errstr, level, err, fmt, args);
     va_end(args);
 
-    /* TODO: output to log file */
-    write(log->file.fd, errstr, p - errstr);
+    if(p >= errstr)
+    {
+        write(log->file.fd, errstr, p - errstr);
+    } else
+    {
+        printf("[LOG]: error in ptrx_log_error\n");
+        return;
+    }
 }
 
 
