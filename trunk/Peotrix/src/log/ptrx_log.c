@@ -58,7 +58,7 @@ int ptrx_log_init(ptrx_log_t *log)
     }
 
     unique_log.connection = 0;
-    unique_log.file.name.data ;= NULL;
+    unique_log.file.name.data = NULL;
     unique_log.file.name.len = ptrx_strlen(name);
     unique_log.file.name.data = (unsigned char *)malloc(unique_log.file.name.len + 1);
 
@@ -194,7 +194,7 @@ void    ptrx_log_error(ptrx_log_t *log,
     va_end(args);
 
     /* TODO: output to log file */
-
+    write(log->file.fd, errstr, p - errstr);
 }
 
 
