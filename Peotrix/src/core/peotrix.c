@@ -21,6 +21,14 @@ int main(int argc, char **argv)
         return PTRX_ERROR;
     }
 
+    rc = ptrx_config_init(config);
+    if(rc != PTRX_OK)
+    {
+        ptrx_log_stderr(log, PTRX_LOG_ERR, 0,
+                    "Cannot initialize config module, exit\n");
+        return PTRX_ERROR;
+    }
+
     ///* create epoll */
     //epoolfd = epoll_create(MAX_EPOLL_SIZE);
 
