@@ -1,29 +1,12 @@
-/************************************************************************************
- * ** Project    : VSBL
- * ** Filename   : SysSettingGet.cpp
- * ** Creator    : Wang Bin
- * ** Date       : Sep 9, 2009
- * ** Description: Get the item and his value
- * **   
- * ** Copyright (c) 2009 Syslive Co.,Ltd. All Rights Reserved
- * **
- * ** Version History
- * ** ---------------
- * ** Version    : 1.0.0
- * ** Date       : Sep 9, 2009
- * ** Revised by : Wang Bin
- * ** Description: Preliminary release
- * **************************************************************************************/
+#include <string.h>
+#include <stdio.h>
+#include <ctype.h>
 
-//#include "SysSetting.h"
-#include <string>
-#include <iostream>
-#include <fstream>
+#include <file/ptrx_file.h>
+#include <log/ptrx_log.h>
 
-
-using namespace std;
 /* Read a character util ' ','\n' and '\0' encountered, then stop */
-void get_arg(char *buf, const char *instr)
+static void get_arg(char *buf, char *instr)
 {
    const char *p = instr;
    int cont = 0;
@@ -54,127 +37,47 @@ void get_arg(char *buf, const char *instr)
         *buf = '\0';
 }
 
+/* TODO: to be finished */
 /* From the configuration file, get the value specified by seciton and item */
-void SysSettingGet(string filename, string section, string item, string& val)
+char *ptrx_config_get(char *filename, char *item, ptrx_log_t *log)
 {
-    fstream file;
-    const char *p, *pval, *pbuf;
-    int sfind = 0, ifind = 0;
-    char line[1024], buf[128];
-    section = "[" + section;
-    section = section + "]";
-    file.open(filename.data(), ifstream::in);
-    if(!file) 
-      {
-        cout << "open fialed !!!" << endl;
-        return;
-      }
-    while(1)
-    { 
-        /* Read a line string */
-        if(file.eof())
-            break;
-        else
-            file.getline(line, sizeof(line), '\n');
-        p = line;
-        while(isspace(*p)) 
-        {
-            p++;
-        }
+    char *name;
+    FILE *fp = NULL;
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t readlen;
 
-        if(*p == '\0' || *p == '#')
-        {
-            continue;
-        }
-        get_arg(buf, p);
-        pbuf = buf;
-        if(strlen(buf) == section.length())
-        if(!section.compare(pbuf))
-        {
-            /* Read the Section */
-            sfind++;
-            while(1)
-            {
-                if(file.eof())
-                    break;
-                else
-                    file.getline(line, sizeof(line), '\n');
-                p = line;
-                while(isspace(*p))
-                {
-                    p++;
-                }
-                if(*p == '\0' || *p == '#')
-                {
-                    continue;
-                }
-                if(*p == '[')
-                {
-                    cout << "not find the item under the Section\n" << endl;
-                    return;
-                }
-                get_arg(buf, p);     
-                pbuf = buf;
-                if(strlen(buf) == item.length())
-                if(!item.compare(pbuf))
-                {
-                /* Read the item option to add the 'VALUE' to val */
-                    ifind++;
-                    while(isspace(*p))
-                        p++;                        
-                    while(*pbuf)
-                    {
-                        p++;
-                        pbuf++;
-                    }
-                    while(isspace(*p))
-                    {
-                        p++;
-                    }
-                    if(*p != '=')
-                    {
-                        cout << " Format does not!! " << endl;
-                        return;
-                    }
-                    else
-                    {
-                        p++;
-                    }
-                    pval = p;
-                    val.assign(pval);
-                    break;
-                }
-            }	
-        }
-    }
-    if(sfind == 0)
-    {
-        cout << "Not find the Section\n" << endl;
-        return ;    
-    }
-    else if(ifind == 0)
-    {
-        cout << "Not find the item under the Section\n" << endl;
-        return ;
-    }
-}
 
-/* From the configuration file, get the value specified by seciton and item */
-string SysConfigGet(string filename, string item)
-{
+    if(filename == NULL)
+    {
+        name = (char *)PTRX_CONFIG_FILE;
+    } else
+    {
+        name = filename;
+    }
+
+    fd = ptrx_open_file(name,
+                        PTRX_FILE_RDONLY,
+                        PTRX_FILE_OPEN,
+                        PTRX_FILE_DEFAULT_ACCESS);
+    fp = fopen(name, "r");
+    if(fp == NULL)
+    {
+        ptrx_log_stderr(log, PTRX_LOG_ERR, 
+                        0, "cannot open file: %s", name);
+        return NULL;
+    }
+
+
     fstream fileS;
     size_t found;
     char line[1024];
     string lineStr;
     string StringValue = "";
 
-    fileS.open(filename.data(), ifstream::in);
-    if(!fileS) 
-    {
-        cout << "open fialed !!!" << endl;
-        return "";
-    }
-    while(1)
+    memset(line, 0, 1024);
+    //while(1)
+    while((readlen = getline(&line, &len, fp)) != -1)
     { 
         /* Read a line string */
         if(fileS.eof())
@@ -193,7 +96,6 @@ string SysConfigGet(string filename, string item)
             continue;
         else
         {
-            //WebService.Endpoint=http://192.168.3.91:8080/SysWebservices/services/IndexWebServices
             found = lineStr.find("=");
             StringValue = lineStr.substr(found + 1);
             break;
