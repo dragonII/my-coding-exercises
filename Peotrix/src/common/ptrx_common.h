@@ -9,5 +9,11 @@
 #define PTRX_DECLINED   -5
 #define PTRX_ABORT      -6
 
+#ifdef __DEBUG__
+#define D_printf(fmt, arg...) fprintf(stderr, fmt, ##arg)
+#else
+#define D_printf(fmt, arg...)
+#endif
+
 
 #endif

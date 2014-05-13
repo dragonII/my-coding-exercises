@@ -1,6 +1,6 @@
 all: subdirs
 
-SUBDIRS= string file log #config core db tcp_connection
+SUBDIRS= string file log tcp_connection #config core db 
 
 subdirs:
 	for n in $(SUBDIRS); do $(MAKE) -C $$n || exit 1; done
