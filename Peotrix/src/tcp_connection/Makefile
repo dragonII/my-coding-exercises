@@ -10,7 +10,7 @@ LDFLAGS=-shared
 INFLAGS=-I. -I..
 DEBUG=-g
 
-TARGET=libtcp_connection.so
+TARGET=libptrx_tcp_connection.so
 
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))
