@@ -3,15 +3,15 @@
 #include	<arpa/inet.h>
 #include	<signal.h>
 #include	<errno.h>
+#include    <strings.h>     /* for bzero */
 extern int	errno;
 
 int	    sockfd = -1;				/* fd for socket of server */
 char    openhost[MAXHOSTNAMELEN] = { 0 };	/* remember host's name */
 
-//extern int			traceflag;	/* TFTP variable */
+//extern int        traceflag;	/* TFTP variable */
 
-extern struct sockaddr_in   tcp_srv_addr;	/* set by tcp_open() */
-extern struct servent       tcp_serv_info;	/* set by tcp_open() */
+struct servent      tcp_serv_info;	/* set by tcp_open() */
 
 /*
  * Close the network connection.  Used by client and server.
@@ -103,23 +103,20 @@ again2:
 }
 
 
-struct sockaddr_in		tcp_cli_addr;	/* set by accept() */
 
 /*
  * Initialize the network connection for the server, when it has *not*
  * been invoked by inetd.
- *      char *service: the name of the service we provide 
  *      int      port: if nonzero, this is the port to listen on;
  *                     overrides the standard port for the service 
  */
 
-void ptrx_net_init(char *service, int port)
+void ptrx_net_init(int port, ptrx_tcp_conn_t *tcp_conn_info)
 {
-    struct servent	*sp;
-    
+    struct sockaddr_in  tcp_srv_addr;	/* set by tcp_open() */
     /*
     * We weren't started by a master daemon.
-    * We have to create a socket ourselves and bind our well-known
+    * We have to create a socket ourselves and bind our own 
     * address to it.
     */
     
@@ -127,47 +124,41 @@ void ptrx_net_init(char *service, int port)
     tcp_srv_addr.sin_family      = AF_INET;
     tcp_srv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     
-    if (service != NULL) 
+    if (port <= 0) 
     {
-        if ( (sp = getservbyname(service, "tcp")) == NULL)
-        {
-            err_dump("net_init: unknown service: %s/tcp", service);
-        }
-        tcp_serv_info = *sp;            /* structure copy */
-        
-        if (port > 0)
-        {
-            tcp_srv_addr.sin_port = htons(port);
-                                        /* caller's value */
-        } else
-        {
-            tcp_srv_addr.sin_port = sp->s_port;
-		                                /* service's value */
-        }
-    } else 
-    {
-        if (port <= 0) 
-        {
-            err_ret("tcp_open: must specify either service or port");
-            return(-1);
-        }
-        tcp_srv_addr.sin_port = htons(port);
+        ptrx_log_stderr(tcp_conn_info->log, PTRX_LOG_ERR,
+                    "tcp_open: must specify port");
+        return PTRX_ERROR;
     }
+    tcp_srv_addr.sin_port = htons(port);
+    tcp_conn_info->port = port;
 
     /*
      * Create the socket and Bind our local address so that any
      * client can send to us.
      */
     
-    if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    //if ( (sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if ( (tcp_conn_info->sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        err_dump("net_init: can't create stream socket");
+        ptrx_log_stderr(tcp_conn_info->log, PTRX_LOG_ERR,
+                    "net_init: can't create stream socket");
+        return PTRX_ERROR;
     }
     
-    if (bind(sockfd, (struct sockaddr *) &tcp_srv_addr,
+    if(fcntl(tcp_conn_info->sockfd, F_SETFL, O_NONBLOCK) != 0)
+    {
+        ptrx_log_stderr(tcp_conn_info->log, PTRX_LOG_ERR,
+                    "sockfd setnonblocking failed");
+        return PTRX_ERROR;
+    }
+
+    if (bind(tcp_conn_info->sockfd, (struct sockaddr *) &tcp_srv_addr,
                 sizeof(tcp_srv_addr)) < 0)
     {
-        err_dump("net_init: can't bind local address");
+        ptrx_log_stderr(tcp_conn_info->log, PTRX_LOG_ERR,
+                    "net_init: can't bind local address");
+        return PTRX_ERROR;
     }
     
     /*
@@ -175,7 +166,9 @@ void ptrx_net_init(char *service, int port)
      * ready  to accept incoming connection requests.
      */
     
-    listen(sockfd, 5);
+    listen(tcp_conn_info->sockfd, 20);
+
+    return PTRX_OK;
 }
 
 /*
@@ -186,24 +179,28 @@ void ptrx_net_init(char *service, int port)
  * for us, and will have already set up the connection to the client.
  * If we weren't started by a master daemon, then we must wait for a
  * client's request to arrive.
+ *
+ * Return value:
+ *      PTRX_OK   => returned by parent, tell caller to wait for next
+ *      newsockfd => returned by child, tell caller to handle
+ *
  */
 
-/* int inetdflag:   true if inetd started us */
-int
-ptrx_net_open(int inetdflag)
+int  ptrx_net_open(ptrx_tcp_conn_t *tcp_conn_info)
 {
-    register int    newsockfd, childpid, nbytes;
-    int             clilen, on;
-    
-    on = 1;
+    register int        newsockfd, childpid;
+    int                 clilen;
+    struct sockaddr_in  tcp_cli_addr;	/* set by accept() */
     
     /*
-     * For the concurrent server that's not initiated by inetd,
-     * we have to wait for a connection request to arrive,
+     * For the concurrent server we have to wait for 
+     * a connection request to arrive,
      * then fork a child to handle the client's request.
      * Beware that the accept() can be interrupted, such as by
      * a previously spawned child process that has terminated
      * (for which we caught the SIGCLD signal).
+     *
+     * TODO: process or thread?
      */
 
 again:
@@ -216,7 +213,9 @@ again:
             errno = 0;
             goto again;	/* probably a SIGCLD that was caught */
         }
-        err_dump("accept error");
+        ptrx_log_stderr(tcp_conn_info->log, PTRX_LOG_ERR,
+                    "accept error");
+        return PTRX_ERROR;
     }
 
     /*
@@ -228,11 +227,12 @@ again:
     
     if ( (childpid = fork()) < 0)
     {
-        err_dump("server can't fork");
+        ptrx_log_stderr(tcp_conn_info->log, PTRX_LOG_ERR,
+                    "server can't fork");
     } else if(childpid > 0) 
     {		/* parent */
         close(newsockfd);   /* close new connection */
-        return(childpid);   /* and return */
+        return PTRX_OK;
     }
 
     /*
@@ -243,9 +243,9 @@ again:
     * we are going to process.
     */
     
-    close(sockfd);
-    sockfd = newsockfd;
+    close(tcp_conn_info->sockfd);
+    tcp_conn_info->sockfd = newsockfd;
     
-    return(0);      /* return to process the connection */
+    return newsockfd;       /* return to process the connection */
 }
 

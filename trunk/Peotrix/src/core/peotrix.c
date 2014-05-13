@@ -5,7 +5,8 @@
 #include <peotrix.h>
 #include <sys/epoll.h>
 
-#include <ptrx_log.h>
+#include <log/ptrx_log.h>
+#include <tcp_connection/ptrx_tcp_connection.h>
 
 int main(int argc, char **argv)
 {
@@ -14,6 +15,7 @@ int main(int argc, char **argv)
     int             rc;
 
     struct epoll_event, events[MAX_EPOLL_SIZE];
+    ptrx_tcp_conn_t tcp_serv_info;
 
     ptrx_log_t  *log;
 
@@ -41,9 +43,16 @@ int main(int argc, char **argv)
         return PTRX_ERROR;
     }
 
+    rc = ptrx_net_init(&tcp_serv_info);
+    if(rc != PTRX_OK)
+    {
+        ptrx_log_stderr("Cannot initialize tcp connectoin, exit");
+        return PTRX_ABORT;
+    }
+
     ev.events = EPOLLIN;
-    ev.data.fd = listen_sock;
-    if(epoll_ctl(epollfd, EPOLL_CTL_ADD, listen_sock, &ev) == -1)
+    ev.data.fd = tcp_serv_info.sockfd;
+    if(epoll_ctl(epollfd, EPOLL_CTL_ADD, tcp_serv_info.sockfd, &ev) == -1)
     {
         ptrx_log_stderr("epoll_ctl failed: listen_sock");
         return PTRX_ERROR;
@@ -62,31 +71,32 @@ int main(int argc, char **argv)
         {
             if(events[n].data.fd == listen_sock)
             {
-                connect_sock = accept();
-                if(connect_sock == -1)
-                {
-                    ptrx_log_stderr("accept failed");
-                    return PTRX_ERROR;
-                }
-                /* setnonblocking */
-                int rc = fcntl(connect_sock, F_SETFL, O_NONBLOCK);
+                rc = ptrx_net_open(&tcp_serv_info); 
                 if(rc < 0)
                 {
-                    ptrx_log_stderr("setnonblocking failed");
+                    ptrx_log_stderr("ptrx_net_open failed");
                     return PTRX_ERROR;
                 }
-
-                ev.events = EPOLLIN | EPOLLOUT;
-                ev.data.fd = connect_sock;
-                if(epoll_ctl(epollfd, EPOLL_CTL_ADD, connect_sock
-                            &ev) == -1)
-                {
-                    ptrx_log_stderr("epoll_ctl: connect_sock");
-                    return PTRX_ERROR;
-                } else
-                {
-                    do_use_fd(events[n].data.fd);
+                if(rc == PTRX_OK)
+                {   /* parent, keep waiting for next */
+                    ev.events = EPOLLIN | EPOLLOUT;
+                    ev.data.fd = tcp_serv_info.sockfd;
+                    if(epoll_ctl(epollfd, EPOLL_CTL_ADD,tcp_serv_info.sockfd; 
+                                &ev) == -1)
+                    {
+                        ptrx_log_stderr("epoll_ctl: connect_sock");
+                        return PTRX_ERROR;
+                    } 
                 }
+                if(rc > 0) /* newsockfd returned */
+                {
+                    /* TODO: to be finished */
+                    process(rc);
+                }
+            } else
+            {
+                /* other sockets */
+                do_use_fd(events[n].data.fd);
             }
         }
     }
