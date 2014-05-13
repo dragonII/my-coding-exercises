@@ -5,13 +5,12 @@ BIN_DIR=../../bin
 
 CC=cc
 RM=rm
-#CFLAGS=-Wall -c -g -D_GNU_SOURCE
 CFLAGS=-Wall -c -fPIC
 LDFLAGS=-shared
-INFLAGS=-I.
+INFLAGS=-I. -I..
 DEBUG=-g
 
-TARGET=libptrx_string.so
+TARGET=libtcp_connection.so
 
 SOURCES=$(wildcard *.c)
 OBJECTS=$(addprefix $(OBJ_DIR)/,$(subst .c,.o, $(SOURCES)))

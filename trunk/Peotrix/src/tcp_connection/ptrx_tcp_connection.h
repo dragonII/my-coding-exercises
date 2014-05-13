@@ -12,7 +12,7 @@ typedef struct ptrx_tcp_conn_s
 } ptrx_tcp_conn_t;
 
 
-void ptrx_net_init(ptrx_tcp_conn_t *tcp_conn_info);
+int  ptrx_net_init(int port, ptrx_tcp_conn_t *tcp_conn_info);
 int  ptrx_net_open(ptrx_tcp_conn_t *tcp_conn_info);
 void ptrx_net_close(ptrx_tcp_conn_t *tcp_conn_info);
 void ptrx_net_send(char *buff, int len, ptrx_tcp_conn_t *tcp_conn_info);
