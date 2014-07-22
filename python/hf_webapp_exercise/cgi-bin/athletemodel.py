@@ -32,3 +32,8 @@ def get_from_store():
     except IOError as ioerr:
         print("File error (get_and_store): " + str(ioerr))
     return all_athletes
+
+def get_names_from_store():
+    athletes = get_from_store()
+    response = [athletes[each_ath].name for each_ath in athletes]
+    return response

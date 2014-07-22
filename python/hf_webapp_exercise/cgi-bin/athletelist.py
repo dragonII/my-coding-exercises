@@ -4,8 +4,12 @@ class AthleteList(list):
         self.name = a_name
         self.dob = a_dob
         self.extend(a_times)
+    @property
     def top3(self):
         return (sorted(set([sanitize(t) for t in self]))[0:3])
+    @property
+    def as_dict(self):
+        return {'Name': self.name, 'DOB': self.dob, 'Top3': self.top3}
 
 
 def sanitize(time_string):
