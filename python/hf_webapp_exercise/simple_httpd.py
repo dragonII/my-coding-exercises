@@ -3,7 +3,7 @@
 from BaseHTTPServer import HTTPServer
 from CGIHTTPServer import CGIHTTPRequestHandler
 
-port = 12345
+port = 80
 
 httpd = HTTPServer(('', port), CGIHTTPRequestHandler)
 print("Starting simple_httpd on port: " + str(httpd.server_port))
