@@ -1,0 +1,4 @@
+recursive-include prjsmanagement/public *
+include prjsmanagement/public/favicon.ico
+recursive-include prjsmanagement/i18n *
+recursive-include prjsmanagement/templates *
