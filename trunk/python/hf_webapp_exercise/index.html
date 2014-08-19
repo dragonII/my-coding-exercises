@@ -1,16 +1,37 @@
 <html>
 <head>
-<title>Welcome to Coach Kelly's Website</title>
-<link type="text/css" rel="stylesheet" href="coach.css" />
 </head>
 <body>
-<img src="images/coach-head.jpg">
-<h1>Welcome to Coach Kelly's Website.</h1>
-<p>
-For now, all that you'll find here is my athlete's <a href="cgi-bin/generate_list.py">timing data</a>. Enjoy!
-</p>
-<p>
-<strong>See you on the track!</strong>
-</p>
+<h1>Welcome to JavaScript Training.</h1>
+<div id="example"></div>
+<script>
+//var a = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+//console.log(a.splice(4));
+//console.log(a);
+//console.log(a.splice(1, 2));
+//console.log(a);
+//console.log(a.splice(1, 1));
+//console.log(a);
+//
+//var b = [1, 2, 3, 4, 5]
+//b.splice(2, 0, 'a', 'b')
+//console.log(b)
+//b.splice(2, 2, [1, 2], 3);
+//console.log(b)
+
+//var sparse = new Array(100);
+//sparse.unshift(-1);
+//console.log(sparse);
+//console.log(sparse.filter(function(x){
+//                                if(x == null || x == undefined)
+//                                return true;}))
+
+var a = [1, 2, 3, 4, 5];
+var sum = a.reduce(function(x, y){
+                    console.log(x, y);
+                    return x * y;});
+console.log(sum);
+
+</script>
 </body>
 </html>
