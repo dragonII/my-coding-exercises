@@ -14,23 +14,55 @@ from tgext.admin.controller import AdminController
 from prjsmanagement.lib.base import BaseController
 from prjsmanagement.controllers.error import ErrorController
 
+from tg.i18n import ugettext as _
+from tg.i18n import lazy_ugettext as l_
+
+from prjsmanagement.model import Project, Employee, P1_Status, P2_Status
+
 __all__ = ['RootController']
 
+from sqlalchemy import asc, desc
+from tw2.forms.datagrid import Column
+import genshi
+
+class SortableColumn(Column):
+    def __init__(self, title, name):
+        super(SortableColumn, self).__init__(name)
+        self._title_ = title
+    
+    def set_title(self, title):
+        self._title_ = title
+
+    def get_title(self):
+        current_ordering = request.GET.get('ordercol')
+        if current_ordering and current_ordering[1:] == self.name:
+            current_ordering = '-' if current_ordering[0] == '+' else '+'
+        else:
+            current_ordering = '+'
+        current_ordering += self.name
+
+        new_params = dict(request.GET)
+        new_params['ordercol'] = current_ordering
+
+        new_url = url(request.path_url, params = new_params)
+        return genshi.Markup('<a href="%(page_url)s">%(title)s</a>' % dict(page_url=new_url, title=self._title_))
+
+    title = property(get_title, set_title)
+
+from tw2.forms import DataGrid
+
+project_status_grid = DataGrid(
+        fields = [
+                 SortableColumn(_('ID'), 'prj_id'),
+                 SortableColumn(_('Owner'), 'prj_owner.e_name'),
+                 SortableColumn(_('Prj Name'), 'prj_name'),
+                 SortableColumn(_('Start Date'), 'start_date'),
+                 SortableColumn(_('Est End Date'), 'estimate_end_date'),
+                 SortableColumn(_('Delivered'), 'delivered')
+                 #(_('P1 Status'), 'p1_end_date')
+                 ])
 
 class RootController(BaseController):
-    """
-    The root controller for the prjsmanagement application.
-
-    All the other controllers and WSGI applications should be mounted on this
-    controller. For example::
-
-        panel = ControlPanelController()
-        another_app = AnotherWSGIApplication()
-
-    Keep in mind that WSGI applications shouldn't be mounted directly: They
-    must be wrapped around with :class:`tg.controllers.WSGIAppController`.
-
-    """
     secc = SecureController()
     admin = AdminController(model, DBSession, config_type=TGAdminConfig)
 
@@ -39,10 +71,26 @@ class RootController(BaseController):
     def _before(self, *args, **kw):
         tmpl_context.project_name = "prjsmanagement"
 
+    def order_by_owner(self, ordering):
+        if 'e_name' in ordering:
+            data = DBSession.query(Project).join(Employee)
+
     @expose('prjsmanagement.templates.index')
-    def index(self):
-        """Handle the front-page."""
-        return dict(page='index')
+    def index(self, *args, **kw):
+        data = DBSession.query(Project)
+        ordering = kw.get('ordercol')
+        if ordering:
+            order_key = ordering[1:]
+            if 'e_name' in ordering:
+                data = data.join(Employee)
+                order_key = order_key.split('.')[1]
+            if ordering[0] == '+':
+                #data = data.order_by(asc(ordering[1:]))
+                data = data.order_by(asc(order_key))
+            elif ordering[0] == '-':
+                #data = data.order_by(desc(ordering[1:]))
+                data = data.order_by(desc(order_key))
+        return dict(page='index', grid = project_status_grid, data = data)
 
     @expose('prjsmanagement.templates.about')
     def about(self):

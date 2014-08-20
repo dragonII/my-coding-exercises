@@ -1,7 +1,12 @@
 MANIFEST.in
 README.txt
+development.ini
 setup.cfg
 setup.py
+test.ini
+migration/env.py
+migration/script.py.mako
+migration/versions/empty.txt
 prjsmanagement/__init__.py
 prjsmanagement.egg-info/PKG-INFO
 prjsmanagement.egg-info/SOURCES.txt
@@ -15,6 +20,7 @@ prjsmanagement/config/app_cfg.py
 prjsmanagement/config/environment.py
 prjsmanagement/config/middleware.py
 prjsmanagement/controllers/__init__.py
+prjsmanagement/controllers/controller.template
 prjsmanagement/controllers/error.py
 prjsmanagement/controllers/root.py
 prjsmanagement/controllers/secure.py
@@ -26,6 +32,9 @@ prjsmanagement/lib/base.py
 prjsmanagement/lib/helpers.py
 prjsmanagement/model/__init__.py
 prjsmanagement/model/auth.py
+prjsmanagement/model/model.template
+prjsmanagement/model/project.py
+prjsmanagement/model/test_prj_db.py
 prjsmanagement/public/favicon.ico
 prjsmanagement/public/css/bootstrap.min.css
 prjsmanagement/public/css/style.css
