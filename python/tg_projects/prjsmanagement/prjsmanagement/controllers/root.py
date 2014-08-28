@@ -58,15 +58,90 @@ project_status_grid = DataGrid(
                  SortableColumn(_('Prj Name'), 'prj_name'),
                  SortableColumn(_('Start Date'), 'start_date'),
                  SortableColumn(_('Est End Date'), 'estimate_end_date'),
-                 SortableColumn(_('Delivered'), 'delivered')
+                 SortableColumn(_('Delivered'), 'delivered'),
+                 #(_('P1 Status'), 'p1_end_date')
+                 ('Action', lambda obj:genshi.Markup('<a href=%s">Edit</a>' % url('/edit', params=dict(item_id=obj.prj_id))))
+                 ])
+
+project_status_grid2 = DataGrid(
+        fields = [
+                 (_('ID'), 'prj_id'),
+                 (_('Owner'), 'prj_owner.e_name'),
+                 (_('Prj Name'), 'prj_name'),
+                 (_('Start Date'), 'start_date'),
+                 (_('Est End Date'), 'estimate_end_date'),
+                 (_('Delivered'), 'delivered')
                  #(_('P1 Status'), 'p1_end_date')
                  ])
+
+
+from sprox.tablebase import TableBase
+class ProjectTable(TableBase):
+    __model__ = Project
+    __omit_fields__ = ['prj_owner_id', 'p1_status', 'p2_status']
+
+
+from sprox.fillerbase import TableFiller
+class ProjectTableFiller(TableFiller):
+    __model__ = Project
+
+from sprox.formbase import AddRecordForm
+class ProjectAddForm(AddRecordForm):
+    __model__ = Project
+
+from tgext.crud import EasyCrudRestController
+class ProjectController(EasyCrudRestController):
+    model = Project
+
+    table = ProjectTable(DBSession)
+    table_filler = ProjectTableFiller(DBSession)
+    new_form = ProjectAddForm(DBSession)
+
+
+
+    substring_filters = True
+
+    title = l_('Project Overview')
+
+    __form_options__ = {
+        '__hide_fields__': ['prj_owner_id', 'owners'],
+        '__field_order__': ['prj_id']
+        #'__field_widget_types__':{'description': Text}
+    }
+
+    __table_options__ = {
+        '__hide_fields__': ['prj_owner_id', 'owners']
+        #'__limit_fields__':['prj_owner', 'owners']
+        #'__add_fields__': {'computed': None},
+        #'computed': lambda filler, row: row.some_field * 2
+    }
+
+
+from formencode import Schema
+from formencode.validators import FieldsMatch
+from tw2.forms import PasswordField, TextField
+form_validator = Schema(chained_validators = (
+                            FieldsMatch('password',
+                                        'verify_pasword',
+                                        messages={'invalidNoMatch':
+                                                  'Passwords do not match'})))
+
+class RegistrationForm(AddRecordForm):
+    __model__ = Employee
+    __require_fields__ = ['password', 'e_name', 'e_email']
+    __omit_fields__    = ['password', 'e_id']
+    __field_order__    = ['e_name', 'e_email']
+    __base_validator__ = form_validator
+    e_email            = TextField
+    verify_password    = PasswordField('verify_password')
 
 class RootController(BaseController):
     secc = SecureController()
     admin = AdminController(model, DBSession, config_type=TGAdminConfig)
 
     error = ErrorController()
+
+    projects = ProjectController(DBSession)
 
     def _before(self, *args, **kw):
         tmpl_context.project_name = "prjsmanagement"
@@ -75,22 +150,32 @@ class RootController(BaseController):
         if 'e_name' in ordering:
             data = DBSession.query(Project).join(Employee)
 
+    @expose()
+    def register(self):
+        RegistrationForm(DBSession)
+
+
     @expose('prjsmanagement.templates.index')
-    def index(self, *args, **kw):
+    def index(self):
         data = DBSession.query(Project)
-        ordering = kw.get('ordercol')
-        if ordering:
-            order_key = ordering[1:]
-            if 'e_name' in ordering:
-                data = data.join(Employee)
-                order_key = order_key.split('.')[1]
-            if ordering[0] == '+':
-                #data = data.order_by(asc(ordering[1:]))
-                data = data.order_by(asc(order_key))
-            elif ordering[0] == '-':
-                #data = data.order_by(desc(ordering[1:]))
-                data = data.order_by(desc(order_key))
-        return dict(page='index', grid = project_status_grid, data = data)
+        return dict(page='index', grid=project_status_grid2, data = data)
+
+    #@expose('prjsmanagement.templates.index')
+    #def index(self, *args, **kw):
+    #    data = DBSession.query(Project)
+    #    ordering = kw.get('ordercol')
+    #    if ordering:
+    #        order_key = ordering[1:]
+    #        if 'e_name' in ordering:
+    #            data = data.join(Employee)
+    #            order_key = order_key.split('.')[1]
+    #        if ordering[0] == '+':
+    #            #data = data.order_by(asc(ordering[1:]))
+    #            data = data.order_by(asc(order_key))
+    #        elif ordering[0] == '-':
+    #            #data = data.order_by(desc(ordering[1:]))
+    #            data = data.order_by(desc(order_key))
+    #    return dict(page='index', grid = project_status_grid, data = data)
 
     @expose('prjsmanagement.templates.about')
     def about(self):
