@@ -16,39 +16,42 @@
 {% block content %}
 <div id="content-main">
 <table class="paleblue">
-    <tr>
-        <th>Project Id</th>
-        <td>{{ project.id }}</td>
+    <tr class="paleblue">
+        <th>Owner Id</th>
+        <td>{{ owner.id }}</td>
     </tr>
     <tr>
-        <th>Project Name</th>
-        <td>{{ project.name }}</td>
+        <th>User Name</th>
+        <td>{{ owner.username }}</td>
     </tr>
     <tr>
-        <th>Start Date</th>
-        <td>{{ project.start_date }}</td>
+        <th>First Name</th>
+        <td>{{ owner.first_name }}</td>
     </tr>
     <tr>
-        <th>Deliver Date</th>
-        <td>{{ project.id }}</td>
+        <th>Last Name</th>
+        <td>{{ owner.last_name }}</td>
     </tr>
     <tr>
-        <th>Customer</th>
-        <td>{{ project.customer.name }}</td>
+        <th>Email</th>
+        <td>{{ owner.email }}</td>
     </tr>
     <tr>
-        <th>Project Owner</th>
-        <td>{{ project.owner.username }}</td>
+        <th>Phone Number</th>
+        <td>{{ owner.phone }}</td>
     </tr>
     <tr>
-        <th>P1 Status</th>
-        <td>{{ project.p1.name }}</td>
+        <th>Projects</th>
+        <td>
+            <ul>
+                {% for prj in projects %}
+                <li>{{ prj.name }}</li>
+                {% endfor %}
+            </ul>
+        </td>
     </tr>
 
 </table>
-
-
-
 
 {% endblock %}
 

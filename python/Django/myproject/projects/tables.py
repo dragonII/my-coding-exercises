@@ -5,6 +5,8 @@ from django_tables2.utils import A
 class ProjectTable(tables.Table):
     name = tables.LinkColumn('prj:detail', args = [A('pk')])
     id = tables.LinkColumn('prj:detail', args = [A('pk')])
+    owner = tables.LinkColumn('prj:owner_prjs', args = [A('owner_id')])
+    #owner = tables.LinkColumn('prj:owner_prjs', args = [A('pk')])
     class Meta:
         model = Project
         attrs = {"class": "paleblue"}
