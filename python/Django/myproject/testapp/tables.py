@@ -3,7 +3,7 @@ from testapp.models import Person
 from django_tables2.utils import A
 
 class PersonTable(tables.Table):
-    name = tables.LinkColumn('people_details', args=[A('pk')])
+    name = tables.LinkColumn('people_detail', args=[A('pk')])
     class Meta:
         model = Person
         attrs = {"class": "paleblue"}
