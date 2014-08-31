@@ -14,4 +14,5 @@ urlpatterns = patterns('',
     url(r'^projects/', include('projects.urls', namespace="prj")),
     url(r'^admin/', include(admin.site.urls)),
     url(r'^people/', include('testapp.urls')),
+    url(r'^accounts/login/$', 'django.contrib.auth.views.login', {'template_name': 'projects/login.html'}),
 )

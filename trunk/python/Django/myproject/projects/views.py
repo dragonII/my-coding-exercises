@@ -10,10 +10,13 @@ from django import forms
 from django_tables2 import RequestConfig
 from projects.tables import ProjectTable
 
+from django.contrib.auth.decorators import login_required
+
 import logging
 logger = logging.getLogger(__name__)
 
 # Create your views here.
+
 
 def site_index(request):
     context = '<a href="/projects/">index</a>'
@@ -37,10 +40,20 @@ def detail(request, project_id):
     #return HttpResponse(_("You're looking at the information of project %s." % project_id))
 
 
+#def listing(request):
+#    if request.user.is_authenticated():
+#        table = ProjectTable(Project.objects.all())
+#        RequestConfig(request).configure(table)
+#        return render(request, 'projects/listing.html', {'table': table})
+#    else:
+#        return HttpResponse("Please login first")
+
+@login_required(login_url='/accounts/login/')
 def listing(request):
     table = ProjectTable(Project.objects.all())
     RequestConfig(request).configure(table)
     return render(request, 'projects/listing.html', {'table': table})
+
 
 def owner_prjs(request, owner_id):
     print "in owner_prjs"
