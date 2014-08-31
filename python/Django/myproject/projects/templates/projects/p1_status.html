@@ -1,0 +1,59 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_static %}
+{% load render_table from django_tables2 %}
+{% load staticfiles %}
+
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "admin/css/dashboard.css" %}" /><link rel="stylesheet" href="{% static "paleblue/css/screen.css" %}" />{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+
+{% block bodyclass %}dashboard{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+<table class="paleblue">
+    <tr class="paleblue">
+        <th>P1 Id</th>
+        <td>{{ p1.id }}</td>
+    </tr>
+    <tr>
+        <th>P1 Name</th>
+        <td>{{ p1.name }}</td>
+    </tr>
+    <tr>
+        <th>Description</th>
+        <td>{{ p1.description }}</td>
+    </tr>
+    <tr>
+        <th>Start Date</th>
+        <td>{{ p1.start_date }}</td>
+    </tr>
+    <tr>
+        <th>Finish Date</th>
+        <td>{{ p1.finish_date }}</td>
+    </tr>
+
+    <tr>
+        <th>Document</th>
+        <td>{{ p1.doc }}</td>
+    </tr>
+
+    <tr>
+        <th>Projects</th>
+        <td>
+                {% for prj in projects %}
+                {{ prj.name }}
+                {% endfor %}
+        </td>
+    </tr>
+
+</table>
+
+{% endblock %}
+
+
+
+

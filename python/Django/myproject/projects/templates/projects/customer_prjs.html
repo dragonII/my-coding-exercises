@@ -1,0 +1,51 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_static %}
+{% load render_table from django_tables2 %}
+{% load staticfiles %}
+
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" type="text/css" href="{% static "admin/css/dashboard.css" %}" /><link rel="stylesheet" href="{% static "paleblue/css/screen.css" %}" />{% endblock %}
+
+{% block coltype %}colMS{% endblock %}
+
+{% block bodyclass %}dashboard{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+<table class="paleblue">
+    <tr class="paleblue">
+        <th>Customer Id</th>
+        <td>{{ customer.id }}</td>
+    </tr>
+    <tr>
+        <th>Customer Name</th>
+        <td>{{ customer.name }}</td>
+    </tr>
+    <tr>
+        <th>Address</th>
+        <td>{{ customer.address }}</td>
+    </tr>
+    <tr>
+        <th>Tel Number</th>
+        <td>{{ customer.tel }}</td>
+    </tr>
+    <tr>
+        <th>Projects</th>
+        <td>
+            <ul>
+                {% for prj in projects %}
+                <li>{{ prj.name }}</li>
+                {% endfor %}
+            </ul>
+        </td>
+    </tr>
+
+</table>
+
+{% endblock %}
+
+
+
+
