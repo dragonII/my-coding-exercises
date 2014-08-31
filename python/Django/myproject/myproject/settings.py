@@ -92,3 +92,5 @@ TEMPLATE_DIRS = [os.path.join(BASE_DIR, 'templates')]
 
 from django.conf.global_settings import TEMPLATE_CONTEXT_PROCESSORS
 TEMPLATE_CONTEXT_PROCESSORS += ('django.core.context_processors.request',)
+
+MEDIA_ROOT="p_docs"
