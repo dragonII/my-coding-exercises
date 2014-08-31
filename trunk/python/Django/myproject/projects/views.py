@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, Http404
 from django.utils.translation import ugettext as _
-from projects.models import Project, Employee
+from projects.models import Project, Employee, Customer, P1_Status
 
 from django.core.mail import send_mail
 
@@ -47,4 +47,17 @@ def owner_prjs(request, owner_id):
     owner = get_object_or_404(Employee, pk = owner_id)
     projects = owner.project_set.all()
     return render(request, 'projects/owner_prjs.html', {'owner': owner, 'projects': projects})
+
+
+def customer_prjs(request, customer_id):
+    print "in customer_prjs"
+    customer = get_object_or_404(Customer, pk = customer_id)
+    projects = customer.project_set.all()
+    return render(request, 'projects/customer_prjs.html', {'customer': customer, 'projects': projects})
+
+def p1_detail(request, p1_id):
+    print "in p_status"
+    p1 = get_object_or_404(P1_Status, pk = p1_id)
+    projects = p1.project_set.all()
+    return render(request, 'projects/p1_status.html', {'p1': p1, 'projects': projects})
 

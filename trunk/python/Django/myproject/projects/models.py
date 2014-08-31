@@ -40,6 +40,7 @@ class P1_Status(models.Model):
     description = models.TextField()
     start_date  = models.DateField()
     finish_date = models.DateField()
+    doc         = models.FileField('Document', upload_to = "p1/%Y%m%d", max_length = 200)
     #owner_id = models.ForeignKey(Employee)
 
     def __unicode__(self):
@@ -54,13 +55,13 @@ class P2_Status(models.Model):
     pass
 
 class Project(models.Model):
-    id = models.IntegerField(primary_key = True)
-    name = models.CharField(max_length = 200)
-    start_date = models.DateField('date created')
+    id           = models.IntegerField(primary_key = True)
+    name         = models.CharField(max_length = 200)
+    start_date   = models.DateField('date created')
     deliver_date = models.DateField('date delivered')
-    customer = models.ForeignKey(Customer)
-    owner = models.ForeignKey(Employee)
-    p1 = models.OneToOneField(P1_Status)
+    customer     = models.ForeignKey(Customer)
+    owner        = models.ForeignKey(Employee)
+    p1           = models.ForeignKey(P1_Status)
 
     def __unicode__(self):
         return self.name
