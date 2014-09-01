@@ -94,3 +94,5 @@ from django.conf.global_settings import TEMPLATE_CONTEXT_PROCESSORS
 TEMPLATE_CONTEXT_PROCESSORS += ('django.core.context_processors.request',)
 
 MEDIA_ROOT="p_docs"
+
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
