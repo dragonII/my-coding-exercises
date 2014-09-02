@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import ugettext as _
 from django.utils.translation import ugettext_lazy as l_
+from django.contrib.auth.models import User
 
 # Create your models here.
 
@@ -60,7 +61,7 @@ class Project(models.Model):
     start_date   = models.DateField('date created')
     deliver_date = models.DateField('date delivered')
     customer     = models.ForeignKey(Customer)
-    owner        = models.ForeignKey(Employee)
+    owner        = models.ForeignKey(User)
     p1           = models.ForeignKey(P1_Status)
 
     def __unicode__(self):
