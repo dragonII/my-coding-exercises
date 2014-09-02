@@ -42,6 +42,7 @@ class P1_Status(models.Model):
     start_date  = models.DateField()
     finish_date = models.DateField()
     doc         = models.FileField('Document', upload_to = "p1/%Y%m%d", max_length = 200)
+    finished    = models.BooleanField('Finished', default = False)
     #owner_id = models.ForeignKey(Employee)
 
     def __unicode__(self):
